@@ -1,0 +1,2 @@
+denied: Connection reset by authenticating user {User} {IP} port {Any} [preauth]
+granted: Accepted publickey for {User} from {IP} port {Any} ssh2: RSA

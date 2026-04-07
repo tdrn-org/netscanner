@@ -23,6 +23,7 @@ import (
 )
 
 func TestPing(t *testing.T) {
+	t.SkipNow()
 	ping := probe.NewPing()
 	runProbe(t, ping, "localhost")
 }

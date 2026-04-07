@@ -24,7 +24,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/tdrn-org/go-log"
@@ -119,7 +118,7 @@ func (s *tcpSensor) collectHandler(receiver sensor.EventReceiver, conn net.Conn)
 			connLogger.Error("read/decode failure", slog.Any("err", err))
 			return
 		}
-		queueSyslogMessages(s.index, receiver, decoder)
+		queueSyslogMessages(s.index, receiver, decoder, s.logger)
 	}
 }
 
@@ -164,7 +163,7 @@ func (s *udpSensor) Collect(receiver sensor.EventReceiver) error {
 			s.logger.Error("read/decode failure", slog.Any("err", err))
 			return err
 		}
-		queueSyslogMessages(s.index, receiver, decoder)
+		queueSyslogMessages(s.index, receiver, decoder, s.logger)
 	}
 	return nil
 }
@@ -177,33 +176,29 @@ func (s *udpSensor) Close() error {
 	return s.listener.Close()
 }
 
-func queueSyslogMessages(index *logmatcher.Index, receiver sensor.EventReceiver, decoder *log.SyslogDecoder) {
+func queueSyslogMessages(index *logmatcher.Index, receiver sensor.EventReceiver, decoder *log.SyslogDecoder, logger *slog.Logger) {
 	for _, message := range decoder.Decode() {
 		switch message := message.(type) {
 		case *log.UndecodedSyslogMessage:
-			fmt.Println(message)
+			logger.Warn("undecoded syslog message", slog.String("message", message.String()))
 		case *log.RFC3164SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Timestamp, message.MessageTag, message.MessageContent, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Timestamp, message.MessageContent, message.UndecodedSyslogMessage.String())
 		case *log.RFC5424SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Timestamp, message.AppName, message.Msg, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Timestamp, message.Msg, message.UndecodedSyslogMessage.String())
 		}
 	}
 }
 
-func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, timestamp time.Time, tagOrAppName string, message string, source string) {
+func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, timestamp time.Time, message string, source string) {
 	resolved := index.ResolveValues(message)
 	if resolved != nil {
-		service := resolved.Service
-		if service == "" {
-			service = strings.SplitN(tagOrAppName, "[", 2)[0]
-		}
 		event := &sensor.Event{
 			Timestamp:       timestamp,
 			Type:            resolved.EventType,
 			HardwareAddress: resolved.HardwareAddress,
 			IPAddress:       resolved.IPAddress,
 			User:            resolved.User,
-			Service:         service,
+			Service:         resolved.Service,
 			Source:          source,
 		}
 		receiver.Queue(event)

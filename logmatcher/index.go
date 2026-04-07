@@ -59,16 +59,17 @@ func (i *Index) Load(r io.Reader) error {
 		}
 		line = strings.TrimSpace(line)
 		if line != "" {
-			lineSplit := strings.SplitN(line, ": ", 2)
-			if len(lineSplit) != 2 {
+			lineSplit := strings.SplitN(line, ":", 3)
+			if len(lineSplit) != 3 {
 				return fmt.Errorf("unrecognized index line: '%s'", line)
 			}
-			eventType, ok := sensor.MatchEventType(lineSplit[0])
+			source := strings.TrimSpace(lineSplit[0])
+			eventType, ok := sensor.MatchEventType(strings.TrimSpace(lineSplit[1]))
 			if !ok {
 				return fmt.Errorf("unrecognized event type in line: '%s'", line)
 			}
-			match := ParseMatch(strings.TrimSpace(lineSplit[1]))
-			i.addMatch(eventType, match...)
+			match := ParseMatch(strings.TrimSpace(lineSplit[2]))
+			i.addMatch(source, eventType, match...)
 		}
 		if eof {
 			return nil
@@ -83,18 +84,18 @@ func (i *Index) Save(w io.Writer) (int, error) {
 	return i.rootNode.Save(w)
 }
 
-func (i *Index) AddMatch(eventType sensor.EventType, match ...Value) {
+func (i *Index) AddMatch(service string, eventType sensor.EventType, match ...Value) {
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 
-	i.addMatch(eventType, match...)
+	i.addMatch(service, eventType, match...)
 }
 
-func (i *Index) addMatch(eventType sensor.EventType, match ...Value) {
+func (i *Index) addMatch(service string, eventType sensor.EventType, match ...Value) {
 	if len(match) == 0 {
 		return
 	}
-	i.matchCount -= i.rootNode.AddMatch(eventType, match, 0, i.logger)
+	i.matchCount -= i.rootNode.AddMatch(service, eventType, match, 0, i.logger)
 }
 
 func (i *Index) Size() int {
@@ -117,13 +118,14 @@ type indexNode struct {
 	Value      Value
 	valueNodes map[Value]*indexNode
 	match      Match
+	service    string
 	eventType  sensor.EventType
 }
 
 func (n *indexNode) Save(w io.Writer) (int, error) {
 	total := 0
 	if n.match != nil {
-		written, err := fmt.Fprintf(w, "%s: %s\n", n.eventType, n.match.String())
+		written, err := fmt.Fprintf(w, "%s:%s:%s\n", n.service, n.eventType, n.match.String())
 		total += written
 		if err != nil {
 			return total, err
@@ -139,7 +141,7 @@ func (n *indexNode) Save(w io.Writer) (int, error) {
 	return total, nil
 }
 
-func (n *indexNode) AddMatch(eventType sensor.EventType, match Match, valueIndex int, logger *slog.Logger) int {
+func (n *indexNode) AddMatch(service string, eventType sensor.EventType, match Match, valueIndex int, logger *slog.Logger) int {
 	value := match[valueIndex]
 	valueNode := n.valueNodes[value]
 	if valueNode == nil {
@@ -155,7 +157,7 @@ func (n *indexNode) AddMatch(eventType sensor.EventType, match Match, valueIndex
 	final := nextValueIndex == len(match)
 	added := 0
 	if !final {
-		added = valueNode.AddMatch(eventType, match, nextValueIndex, logger)
+		added = valueNode.AddMatch(service, eventType, match, nextValueIndex, logger)
 	} else {
 		if valueNode.match == nil {
 			added = 1
@@ -171,6 +173,7 @@ func (n *indexNode) AddMatch(eventType sensor.EventType, match Match, valueIndex
 
 type indexResolver struct {
 	match          Match
+	service        string
 	eventType      sensor.EventType
 	matchingTokens []Token
 }
@@ -180,6 +183,7 @@ func (r *indexResolver) resolve() *ResolvedValues {
 		return nil
 	}
 	resolved := &ResolvedValues{
+		Service:   r.service,
 		EventType: r.eventType,
 	}
 	for index, value := range r.match {
@@ -191,7 +195,7 @@ func (r *indexResolver) resolve() *ResolvedValues {
 		case UserValue:
 			resolved.User = r.matchingTokens[index].Symbol
 		case ServiceValue:
-			resolved.User = r.matchingTokens[index].Symbol
+			resolved.Service = r.matchingTokens[index].Symbol
 		}
 	}
 	return resolved
@@ -200,6 +204,7 @@ func (r *indexResolver) resolve() *ResolvedValues {
 func (r *indexResolver) ResolveValues(node *indexNode, tokens []Token, tokenIndex int) *ResolvedValues {
 	if node.match != nil {
 		r.match = node.match
+		r.service = node.service
 		r.eventType = node.eventType
 		r.matchingTokens = tokens[:tokenIndex]
 	}

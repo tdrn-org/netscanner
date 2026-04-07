@@ -66,12 +66,13 @@ const DefaultPingInterval time.Duration = 1 * time.Second
 const DefaultPingCount int = 3
 
 type Ping struct {
-	Interface string
-	Interval  time.Duration
-	Size      int
-	TTL       int
-	Count     int
-	logger    *slog.Logger
+	Interface  string
+	Interval   time.Duration
+	Size       int
+	TTL        int
+	Count      int
+	Privileged bool
+	logger     *slog.Logger
 }
 
 func NewPing() *Ping {
@@ -109,6 +110,7 @@ func (p *Ping) Run(ctx context.Context, address netip.Addr) *PingResult {
 	if p.Count > 0 {
 		pinger.Count = p.Count
 	}
+	pinger.SetPrivileged(p.Privileged)
 	pinger.SetLogger(wrappedLogger{Logger: runLogger})
 	err = pinger.RunWithContext(ctx)
 	statistics := pinger.Statistics()

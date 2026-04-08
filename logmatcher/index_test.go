@@ -31,7 +31,7 @@ func TestIndexSaveLoad(t *testing.T) {
 	buffer := &bytes.Buffer{}
 	written, err := index1.Save(buffer)
 	require.NoError(t, err)
-	require.Equal(t, 151, written)
+	require.Equal(t, 159, written)
 
 	index2 := emptyTestIndex(t)
 	err = index2.Load(buffer)
@@ -54,7 +54,7 @@ func TestIndexResolveValues(t *testing.T) {
 	require.Nil(t, resolved2.HardwareAddress)
 	require.Equal(t, "127.0.0.1", resolved2.IPAddress.String())
 	require.Equal(t, "admin", resolved2.User)
-	require.Empty(t, resolved2.Service)
+	require.Equal(t, "sshd", resolved2.Service)
 
 	// Resolve matching message1
 	resolved3 := index.ResolveValues("Accepted publickey for root from ::1 port 41074 ssh2: RSA SHA256:xyz")
@@ -63,7 +63,7 @@ func TestIndexResolveValues(t *testing.T) {
 	require.Nil(t, resolved3.HardwareAddress)
 	require.Equal(t, "::1", resolved3.IPAddress.String())
 	require.Equal(t, "root", resolved3.User)
-	require.Empty(t, resolved3.Service)
+	require.Equal(t, "sshd", resolved3.Service)
 
 	// Resolve not matching message
 	resolved4 := index.ResolveValues("Connection closed by authenticating user admin ::1 port 45054 [preauth]")

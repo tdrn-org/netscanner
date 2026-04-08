@@ -165,6 +165,7 @@ func (n *indexNode) AddMatch(service string, eventType sensor.EventType, match M
 			logger.Warn("replacing match", slog.Any("old", valueNode.match), slog.Any("new", match))
 		}
 		valueNode.match = make(Match, len(match))
+		valueNode.service = service
 		valueNode.eventType = eventType
 		copy(valueNode.match, match)
 	}

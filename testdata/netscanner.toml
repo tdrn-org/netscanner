@@ -1,0 +1,6 @@
+[logging]
+level = "debug"
+
+[server]
+address = "localhost:0"
+access_log = "stdout"

@@ -18,32 +18,19 @@ package netscanner
 
 import (
 	"context"
-	"fmt"
-	"os"
 
-	"github.com/tdrn-org/netscanner/logmatcher"
-	"github.com/tdrn-org/netscanner/sensor"
-	"github.com/tdrn-org/netscanner/sensor/syslog"
+	"github.com/alecthomas/kong"
 )
 
-func Run(ctx context.Context, args []string) error {
-	syslogIndex := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
-	syslogIndexFile, err := os.Open("syslog_index.txt")
+func RunArgs(ctx context.Context, args []string) error {
+	cmdLine := &cmdLine{ctx: ctx}
+	cmdParser, err := kong.New(cmdLine, cmdLineApplication, cmdLineHelpOptions, cmdLineVars)
 	if err != nil {
 		return err
 	}
-	defer syslogIndexFile.Close()
-	err = syslogIndex.Load(syslogIndexFile)
+	cmd, err := cmdParser.Parse(args)
 	if err != nil {
 		return err
 	}
-	syslogSensor, err := syslog.ListenTCP(syslogIndex, "tcp", "localhost:9514")
-	if err != nil {
-		return err
-	}
-	defer syslogSensor.Close()
-	err = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
-		fmt.Println(event)
-	}))
-	return err
+	return cmd.Run()
 }

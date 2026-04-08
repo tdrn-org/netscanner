@@ -14,23 +14,10 @@
  * limitations under the License.
  */
 
-package main
+package netscanner
 
-import (
-	"context"
-	"log/slog"
-	"os"
+import "os"
 
-	"github.com/tdrn-org/go-log"
-	"github.com/tdrn-org/netscanner"
-)
-
-func main() {
-	cmdArgs := os.Args[1:]
-	log.InitFromFlags(cmdArgs, nil)
-	slog.Debug("running netscanner command", slog.Any("args", os.Args))
-	err := netscanner.RunArgs(context.Background(), cmdArgs)
-	if err != nil {
-		slog.Error("netscanner command failure", slog.Any("err", err))
-	}
+func DefaultConfigPath() string {
+	return os.ExpandEnv("${LOCALAPPDATA}/netscanner/netscanner.toml")
 }

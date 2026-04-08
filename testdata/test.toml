@@ -1,0 +1,10 @@
+[logging]
+level = "debug"
+target = "syslog"
+color = "on"
+file_name = "/var/log/netscanner/netscanner.log"
+file_size_limit = 1000000
+syslog_network = "tcp"
+syslog_address = "localhost:601"
+syslog_encoding = "rfc5424+framing"
+syslog_facility = 4

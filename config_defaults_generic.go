@@ -1,3 +1,5 @@
+//go:build !windows
+
 /*
  * Copyright 2025-2026 Holger de Carne
  *
@@ -14,23 +16,8 @@
  * limitations under the License.
  */
 
-package main
+package netscanner
 
-import (
-	"context"
-	"log/slog"
-	"os"
-
-	"github.com/tdrn-org/go-log"
-	"github.com/tdrn-org/netscanner"
-)
-
-func main() {
-	cmdArgs := os.Args[1:]
-	log.InitFromFlags(cmdArgs, nil)
-	slog.Debug("running netscanner command", slog.Any("args", os.Args))
-	err := netscanner.RunArgs(context.Background(), cmdArgs)
-	if err != nil {
-		slog.Error("netscanner command failure", slog.Any("err", err))
-	}
+func DefaultConfigPath() string {
+	return "/etc/netscanner/netscanner.toml"
 }

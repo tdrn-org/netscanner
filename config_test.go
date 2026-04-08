@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package main
+package netscanner_test
 
 import (
-	"context"
-	"log/slog"
-	"os"
+	"testing"
 
-	"github.com/tdrn-org/go-log"
+	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/netscanner"
 )
 
-func main() {
-	cmdArgs := os.Args[1:]
-	log.InitFromFlags(cmdArgs, nil)
-	slog.Debug("running netscanner command", slog.Any("args", os.Args))
-	err := netscanner.RunArgs(context.Background(), cmdArgs)
-	if err != nil {
-		slog.Error("netscanner command failure", slog.Any("err", err))
-	}
+func TestLoadConfigDefaults(t *testing.T) {
+	defaultConfig, err := netscanner.DefaultConfig()
+	require.NoError(t, err)
+	emptyConfig, err := netscanner.LoadConfig("testdata/empty.toml", true)
+	require.NoError(t, err)
+	require.Equal(t, defaultConfig, emptyConfig)
+}
+
+func TestLoadConfig(t *testing.T) {
+	_, err := netscanner.LoadConfig("testdata/test.toml", true)
+	require.NoError(t, err)
 }

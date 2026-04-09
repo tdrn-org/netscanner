@@ -20,3 +20,7 @@ trusted_headers = [ ]
 allowed_origins = []
 access_log = ""
 access_log_size_limit = 0
+
+[metrics]
+enabled = false
+path = "/metrics"

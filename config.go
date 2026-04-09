@@ -35,6 +35,7 @@ import (
 type Config struct {
 	Logging LoggingConfig `toml:"logging"`
 	Server  ServerConfig  `toml:"server"`
+	Metrics MetricsConfig `toml:"metrics"`
 }
 
 type LoggingConfig struct {
@@ -129,6 +130,12 @@ func (c *ServerConfig) httpServerOptions() []httpserver.OptionSetter {
 		httpServerOptions = append(httpServerOptions, httpserver.WithAccessLog(accessLogLogger))
 	}
 	return httpServerOptions
+}
+
+type MetricsConfig struct {
+	Enabled bool   `toml:"enabled"`
+	Path    string `toml:"path"`
+	Process bool   `toml:"process"`
 }
 
 //go:embed config_defaults.toml

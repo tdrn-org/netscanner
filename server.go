@@ -24,15 +24,24 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tdrn-org/go-httpserver"
+	"github.com/tdrn-org/netscanner/internal/metrics"
+	"github.com/tdrn-org/netscanner/logmatcher"
+	"github.com/tdrn-org/netscanner/sensor"
+	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
 type Server struct {
-	config     *Config
-	httpServer *httpserver.Instance
-	baseURL    *url.URL
-	logger     *slog.Logger
+	config          *Config
+	httpServer      *httpserver.Instance
+	baseURL         *url.URL
+	metricsRecorder metrics.Recorder
+	logger          *slog.Logger
 }
 
 func StartServer(ctx context.Context, config *Config) (*Server, error) {
@@ -45,6 +54,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 	}
 	startFuncs := []func(ctx context.Context, config *Config) error{
 		s.startHttpServer,
+		s.startMetrics,
 	}
 	for _, startFunc := range startFuncs {
 		err := startFunc(ctx, config)
@@ -89,7 +99,45 @@ func (s *Server) closeHttpServer() error {
 	return s.httpServer.Close()
 }
 
+func (s *Server) startMetrics(ctx context.Context, config *Config) error {
+	if !config.Metrics.Enabled {
+		s.metricsRecorder = metrics.NewRecorder(nil)
+		return nil
+	}
+	s.logger.Info("enabling Metrics endpoint...", slog.String("path", config.Metrics.Path))
+	registry := prometheus.NewRegistry()
+	if config.Metrics.Process {
+		err := registry.Register(collectors.NewGoCollector())
+		if err != nil {
+			return fmt.Errorf("failed to register process metric collector (cause: %w)", err)
+		}
+	}
+	s.metricsRecorder = metrics.NewRecorder(registry)
+	s.httpServer.Handle("GET "+config.Metrics.Path, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
+	return nil
+}
+
 func (s *Server) Run(_ context.Context) error {
+	{
+		syslogIndex := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
+		syslogIndexFile, err := os.Open("syslog_index.txt")
+		if err != nil {
+			return err
+		}
+		defer syslogIndexFile.Close()
+		err = syslogIndex.Load(syslogIndexFile)
+		if err != nil {
+			return err
+		}
+		syslogSensor, err := syslog.ListenTCP(syslogIndex, "tcp", "localhost:9514")
+		if err != nil {
+			return err
+		}
+		defer syslogSensor.Close()
+		err = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
+			s.metricsRecorder.RecordEvent(event)
+		}))
+	}
 	s.logger.Info("serving HTTP requests...")
 	err := s.httpServer.Serve()
 	if !errors.Is(err, http.ErrServerClosed) {

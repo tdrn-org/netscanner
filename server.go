@@ -132,13 +132,12 @@ func (s *Server) Run(_ context.Context) error {
 				return err
 			}
 			defer syslogSensor.Close()
-			err = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
-				fmt.Println(event.String())
-				s.metricsRecorder.RecordEvent(event)
-			}))
-			if err != nil {
-				return err
-			}
+			go func() {
+				_ = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
+					fmt.Println(event.String())
+					s.metricsRecorder.RecordEvent(event)
+				}))
+			}()
 		}
 	}
 	s.logger.Info("serving HTTP requests...")

@@ -136,6 +136,7 @@ type MetricsConfig struct {
 	Enabled bool   `toml:"enabled"`
 	Path    string `toml:"path"`
 	Process bool   `toml:"process"`
+	Sensors bool   `toml:"sensors"`
 }
 
 //go:embed config_defaults.toml

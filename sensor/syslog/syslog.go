@@ -31,6 +31,8 @@ import (
 	"github.com/tdrn-org/netscanner/sensor"
 )
 
+const Name string = "syslog"
+
 type Sensor interface {
 	Address() string
 	sensor.EventSource
@@ -78,7 +80,7 @@ func newTCPSensor(index *logmatcher.Index, proto string, listener net.Listener) 
 	sensor := &tcpSensor{
 		index:    index,
 		listener: listener,
-		logger:   slog.With(slog.String("sensor", "syslog"), slog.String("proto", proto), slog.String("address", listener.Addr().String())),
+		logger:   slog.With(slog.String("sensor", Name), slog.String("proto", proto), slog.String("address", listener.Addr().String())),
 	}
 	sensor.logger.Info("listening")
 	return sensor
@@ -199,6 +201,7 @@ func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, 
 			IPAddress:       resolved.IPAddress,
 			User:            resolved.User,
 			Service:         resolved.Service,
+			Sensor:          Name,
 			Source:          source,
 		}
 		receiver.Queue(event)

@@ -24,3 +24,5 @@ access_log_size_limit = 0
 [metrics]
 enabled = false
 path = "/metrics"
+process = false
+sensors = true

@@ -59,6 +59,5 @@ func newMetricsRecorder(registry *prometheus.Registry) *metricsRecorder {
 }
 
 func (r *metricsRecorder) RecordEvent(event *sensor.Event) {
-	//TODO:Sensor
-	r.Events.WithLabelValues("syslog", event.Service, string(event.Type)).Inc()
+	r.Events.WithLabelValues(event.Sensor, event.Service, string(event.Type)).Inc()
 }

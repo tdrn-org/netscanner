@@ -50,6 +50,7 @@ type Event struct {
 	IPAddress       *netip.Addr
 	User            string
 	Service         string
+	Sensor          string
 	Source          string
 }
 

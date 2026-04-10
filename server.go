@@ -119,24 +119,27 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 
 func (s *Server) Run(_ context.Context) error {
 	{
-		syslogIndex := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
 		syslogIndexFile, err := os.Open("syslog_index.txt")
-		if err != nil {
-			return err
+		if err == nil {
+			defer syslogIndexFile.Close()
+			syslogIndex := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
+			err = syslogIndex.Load(syslogIndexFile)
+			if err != nil {
+				return err
+			}
+			syslogSensor, err := syslog.ListenTCP(syslogIndex, "tcp", "localhost:9514")
+			if err != nil {
+				return err
+			}
+			defer syslogSensor.Close()
+			err = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
+				fmt.Println(event.String())
+				s.metricsRecorder.RecordEvent(event)
+			}))
+			if err != nil {
+				return err
+			}
 		}
-		defer syslogIndexFile.Close()
-		err = syslogIndex.Load(syslogIndexFile)
-		if err != nil {
-			return err
-		}
-		syslogSensor, err := syslog.ListenTCP(syslogIndex, "tcp", "localhost:9514")
-		if err != nil {
-			return err
-		}
-		defer syslogSensor.Close()
-		err = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
-			s.metricsRecorder.RecordEvent(event)
-		}))
 	}
 	s.logger.Info("serving HTTP requests...")
 	err := s.httpServer.Serve()

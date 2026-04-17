@@ -67,7 +67,8 @@ type cmdLine struct {
 }
 
 type runCmd struct {
-	Config string `short:"c" help:"The configuration file to use" default:"${config_default}"`
+	Config  string `short:"c" help:"The configuration file to use" default:"${config_default}"`
+	Profile string `short:"p" help:"The profile to activate on startup"`
 }
 
 func (cmd *runCmd) Run(args *cmdLine) error {
@@ -87,7 +88,7 @@ func (cmd *runCmd) Run(args *cmdLine) error {
 	}
 	stoppedWG := sync.WaitGroup{}
 	stoppedWG.Go(func() {
-		err = server.Run(args.ctx)
+		err = server.Run(args.ctx, cmd.Profile)
 	})
 	go func() {
 		sigint := make(chan os.Signal, 1)

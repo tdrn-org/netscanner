@@ -1,0 +1,19 @@
+INSERT INTO
+    syslog_sensor(
+        id,
+        profile_id,
+        name,
+        enabled,
+        network,
+        address,
+        log_matcher
+    )
+VALUES(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7
+)

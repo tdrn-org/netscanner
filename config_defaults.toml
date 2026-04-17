@@ -21,6 +21,20 @@ allowed_origins = []
 access_log = ""
 access_log_size_limit = 0
 
+[datastore]
+type="memory"
+
+[datastore.memory]
+
+[datastore.sqlite]
+file = "./netscanner.db"
+
+[datastore.postgres]
+address = "localhost:5432"
+db = "netscanner"
+user = "netscanner"
+password = ""
+
 [metrics]
 enabled = false
 path = "/metrics"

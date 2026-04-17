@@ -1,0 +1,30 @@
+{
+	"name": "test_profile",
+	"log_matchers": {
+		"test_log_matcher": {
+			"name": "test_log_matcher",
+			"tokenizer": "test_tokenizer",
+			"entries": [
+				{
+					"service": "sshd",
+					"event_type": "denied",
+					"match": "Connection reset by authenticating user {User} {IP} port {Any} [preauth]"
+				},
+				{
+					"service": "sshd",
+					"event_type": "granted",
+					"match": "Accepted publickey for {User} from {IP} port {Any} ssh2: RSA"
+				}
+			]
+		}
+	},
+	"syslog_sensors": {
+		"test_syslog_sensor": {
+			"name": "test_syslog_sensor",
+			"enabled": true,
+			"network": "tcp",
+			"address": "localhost:514",
+			"log_matcher": "test_log_matcher"
+		}
+	}
+}

@@ -24,23 +24,28 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"os"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-httpserver"
+	"github.com/tdrn-org/netscanner/internal/datastore/model"
 	"github.com/tdrn-org/netscanner/internal/metrics"
-	"github.com/tdrn-org/netscanner/logmatcher"
 	"github.com/tdrn-org/netscanner/sensor"
-	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
+
+var ErrUnknownProfile error = errors.New("unknown profile")
 
 type Server struct {
 	config          *Config
 	httpServer      *httpserver.Instance
 	baseURL         *url.URL
+	datastore       *database.Driver
 	metricsRecorder metrics.Recorder
+	activeProfile   ServerProfile
+	mutex           sync.RWMutex
 	logger          *slog.Logger
 }
 
@@ -54,6 +59,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 	}
 	startFuncs := []func(ctx context.Context, config *Config) error{
 		s.startHttpServer,
+		s.startDatastore,
 		s.startMetrics,
 	}
 	for _, startFunc := range startFuncs {
@@ -85,6 +91,16 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	return nil
 }
 
+func (s *Server) handlePingGet(w http.ResponseWriter, r *http.Request) {
+	status := http.StatusOK
+	err := s.datastore.Ping(r.Context())
+	if err != nil {
+		s.logger.Warn("datastore ping failure", slog.Any("err", err))
+		status = http.StatusInternalServerError
+	}
+	w.WriteHeader(status)
+}
+
 func (s *Server) shutdownHttpServer(ctx context.Context) error {
 	if s.httpServer == nil {
 		return nil
@@ -97,6 +113,30 @@ func (s *Server) closeHttpServer() error {
 		return nil
 	}
 	return s.httpServer.Close()
+}
+
+func (s *Server) startDatastore(ctx context.Context, config *Config) error {
+	datastoreConfig, err := config.Datastore.config()
+	if err != nil {
+		return err
+	}
+	datastore, err := database.Open(datastoreConfig)
+	if err != nil {
+		return err
+	}
+	_, _, err = datastore.UpdateSchema(ctx)
+	if err != nil {
+		return errors.Join(err, datastore.Close())
+	}
+	s.datastore = datastore
+	return nil
+}
+
+func (s *Server) closeDatastore() error {
+	if s.datastore == nil {
+		return nil
+	}
+	return s.datastore.Close()
 }
 
 func (s *Server) startMetrics(ctx context.Context, config *Config) error {
@@ -117,27 +157,15 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func (s *Server) Run(_ context.Context) error {
-	{
-		syslogIndexFile, err := os.Open("syslog_index.txt")
+func (s *Server) Run(ctx context.Context, profileName string) error {
+	if profileName != "" {
+		profile, err := s.GetProfile(ctx, profileName)
 		if err == nil {
-			defer syslogIndexFile.Close()
-			syslogIndex := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
-			err = syslogIndex.Load(syslogIndexFile)
-			if err != nil {
-				return err
-			}
-			syslogSensor, err := syslog.ListenTCP(syslogIndex, "tcp", "localhost:9514")
-			if err != nil {
-				return err
-			}
-			defer syslogSensor.Close()
-			go func() {
-				_ = syslogSensor.Collect(sensor.EventReceiverFunc(func(event *sensor.Event) {
-					fmt.Println(event.String())
-					s.metricsRecorder.RecordEvent(event)
-				}))
-			}()
+			s.logger.Info("activating profile", slog.String("profile", profileName))
+			s.activeProfile = profile
+			s.activeProfile.Start(ctx)
+		} else {
+			s.logger.Warn("failed to activate profile", slog.String("profile", profileName), slog.Any("err", err))
 		}
 	}
 	s.logger.Info("serving HTTP requests...")
@@ -177,18 +205,38 @@ func (s *Server) Stop(ctx context.Context) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	shutdownFuncs := []func(ctx context.Context) error{
+		s.shutdownActiveProfile,
 		s.shutdownHttpServer,
 	}
 	shutdownErrs := make([]error, 0, len(shutdownFuncs))
 	for _, shutdownFunc := range shutdownFuncs {
-		shutdownErrs = append(shutdownErrs, shutdownFunc(ctx))
+		err := shutdownFunc(ctx)
+		if err != nil {
+			shutdownErrs = append(shutdownErrs, err)
+		}
 	}
 	return errors.Join(shutdownErrs...)
 }
 
+func (s *Server) shutdownActiveProfile(ctx context.Context) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.shutdownActiveProfileLocked(ctx)
+}
+
+func (s *Server) shutdownActiveProfileLocked(ctx context.Context) error {
+	if s.activeProfile == nil {
+		return nil
+	}
+	return s.activeProfile.Shutdown(ctx)
+}
+
 func (s *Server) Close() error {
 	closeFuncs := []func() error{
+		s.closeActiveProfile,
 		s.closeHttpServer,
+		s.closeDatastore,
 	}
 	closeErrs := make([]error, 0, len(closeFuncs))
 	for _, closeFunc := range closeFuncs {
@@ -197,6 +245,65 @@ func (s *Server) Close() error {
 	return errors.Join(closeErrs...)
 }
 
-func (s *Server) handlePingGet(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+func (s *Server) closeActiveProfile() error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return s.closeProfilesLocked()
+}
+
+func (s *Server) closeProfilesLocked() error {
+	if s.activeProfile == nil {
+		return nil
+	}
+	err := s.activeProfile.Close()
+	s.activeProfile = nil
+	return err
+}
+
+func (s *Server) AddProfile(ctx context.Context, profile *Profile) error {
+	txCtx, tx, err := s.datastore.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.EndTx(txCtx)
+
+	err = model.DeleteProfileByName(ctx, s.datastore, profile.Name)
+	if err != nil {
+		return err
+	}
+	err = profile.toModel(s.datastore).Insert(txCtx)
+	if err != nil {
+		return err
+	}
+
+	err = tx.CommitTx(txCtx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) GetProfileNames(ctx context.Context) ([]string, error) {
+	return model.SelectProfileNames(ctx, s.datastore)
+}
+
+func (s *Server) GetProfile(ctx context.Context, name string) (ServerProfile, error) {
+	model, err := model.SelectProfileByName(ctx, s.datastore, name)
+	if err != nil {
+		return nil, err
+	}
+	if model == nil {
+		return nil, ErrUnknownProfile
+	}
+	profile := &serverProfile{
+		receiver: sensor.EventReceiverFunc(s.queueEvent),
+		model:    model,
+		logger:   s.logger.With(slog.String("profile", model.Name)),
+	}
+	return profile, nil
+}
+
+func (s *Server) queueEvent(event *sensor.Event) {
+	s.logger.Info(event.String())
 }

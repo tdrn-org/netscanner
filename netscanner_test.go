@@ -25,6 +25,11 @@ import (
 	"github.com/tdrn-org/netscanner"
 )
 
+func TestRunArgs(t *testing.T) {
+	err := netscanner.RunArgs(t.Context(), []string{"version"})
+	require.NoError(t, err)
+}
+
 func TestNetscannerStartStop(t *testing.T) {
 	server := startNetscanner(t)
 	err := server.Ping(t.Context())
@@ -33,29 +38,13 @@ func TestNetscannerStartStop(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNetscannerProfile(t *testing.T) {
-	server := startNetscanner(t)
-	defer server.Stop(t.Context())
-
-	profile, err := netscanner.LoadProfileFile("testdata/test_profile.json")
-	require.NoError(t, err)
-	serverProfile, err := server.GetProfile(t.Context(), profile.Name)
-	require.ErrorIs(t, err, netscanner.ErrUnknownProfile)
-	require.Nil(t, serverProfile)
-	err = server.AddProfile(t.Context(), profile)
-	require.NoError(t, err)
-	serverProfile, err = server.GetProfile(t.Context(), profile.Name)
-	require.NoError(t, err)
-	require.Equal(t, profile.Name, serverProfile.Name())
-}
-
 func startNetscanner(t *testing.T) *netscanner.Server {
 	config, err := netscanner.LoadConfig("testdata/netscanner.toml", true)
 	require.NoError(t, err)
 	server, err := netscanner.StartServer(t.Context(), config)
 	require.NoError(t, err)
 	go func() {
-		err := server.Run(t.Context(), "")
+		err := server.Run(t.Context())
 		if !errors.Is(err, http.ErrServerClosed) {
 			require.NoError(t, err)
 		}

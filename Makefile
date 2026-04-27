@@ -19,7 +19,7 @@ endif
 NPM := $(shell command -v npm 2> /dev/null)
 NPMOPTS ?= --no-progress --no-color --no-fund
 
-WEB ?= 0
+WEB ?= 1
 
 .DEFAULT_GOAL := help
 
@@ -48,7 +48,7 @@ endif
 deps: init
 	@echo "Preparing dependencies..."
 ifeq (1, $(WEB))
-	$(NPM) $(NPMOPTS) install --prefix internal/server/web
+	$(NPM) $(NPMOPTS) install --prefix internal/web
 endif
 	$(GO) mod download -x
 
@@ -57,7 +57,7 @@ build: deps
 	@echo "Building artifacts..."
 ifeq (1, $(WEB))
 	# cd internal/web && $(NPM) $(NPMOPTS) run build
-	$(NPM) $(NPMOPTS) run --prefix internal/server/web build
+	$(NPM) $(NPMOPTS) run --prefix internal/web build
 endif
 	mkdir -p "build/bin"
 	$(foreach GOCMD, $(GOCMDS), $(GO) build -ldflags "-X $(GOMODULE)/internal/buildinfo.cmd=$(GOCMD) $(LDFLAGS)" -o "./build/bin/$(GOCMD)$(GOCMDEXT)" ./cmd/$(GOCMD);)

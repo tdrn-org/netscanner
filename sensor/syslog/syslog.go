@@ -90,7 +90,12 @@ func (s *tcpSensor) Address() string {
 	return s.listener.Addr().String()
 }
 
+func (s *tcpSensor) Name() string {
+	return Name
+}
+
 func (s *tcpSensor) Collect(receiver sensor.EventReceiver) error {
+	s.logger.Info("waiting for connections...")
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -113,7 +118,7 @@ func (s *tcpSensor) collectHandler(receiver sensor.EventReceiver, conn net.Conn)
 		decoder := &log.SyslogDecoder{}
 		err := decoder.Read(conn)
 		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-			connLogger.Debug("connection closed")
+			connLogger.Info("connection closed")
 			return
 		}
 		if err != nil {
@@ -152,13 +157,17 @@ func (s *udpSensor) Address() string {
 	return s.listener.LocalAddr().String()
 }
 
+func (s *udpSensor) Name() string {
+	return Name
+}
+
 func (s *udpSensor) Collect(receiver sensor.EventReceiver) error {
-	s.logger.Debug("listening")
+	s.logger.Info("waiting for messages...")
 	for {
 		decoder := &log.SyslogDecoder{}
 		err := decoder.Read(s.listener)
 		if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-			s.logger.Debug("listener closed")
+			s.logger.Info("listener closed")
 			break
 		}
 		if err != nil {
@@ -184,17 +193,18 @@ func queueSyslogMessages(index *logmatcher.Index, receiver sensor.EventReceiver,
 		case *log.UndecodedSyslogMessage:
 			logger.Warn("undecoded syslog message", slog.String("message", message.String()))
 		case *log.RFC3164SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Timestamp, message.MessageContent, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.MessageContent, message.UndecodedSyslogMessage.String())
 		case *log.RFC5424SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Timestamp, message.Msg, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.Msg, message.UndecodedSyslogMessage.String())
 		}
 	}
 }
 
-func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, timestamp time.Time, message string, source string) {
+func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, host string, timestamp time.Time, message string, source string) {
 	resolved := index.ResolveValues(message)
 	if resolved != nil {
 		event := &sensor.Event{
+			Host:            host,
 			Timestamp:       timestamp,
 			Type:            resolved.EventType,
 			HardwareAddress: resolved.HardwareAddress,
@@ -202,7 +212,6 @@ func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, 
 			User:            resolved.User,
 			Service:         resolved.Service,
 			Sensor:          Name,
-			Source:          source,
 		}
 		receiver.Queue(event)
 	}

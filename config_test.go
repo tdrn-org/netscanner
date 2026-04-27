@@ -32,6 +32,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	_, err := netscanner.LoadConfig("testdata/test.toml", true)
+	config, err := netscanner.LoadConfig("testdata/test.toml", true)
 	require.NoError(t, err)
+	sensorConfigs := config.Sensors.Configs()
+	require.NotNil(t, sensorConfigs)
 }

@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -44,6 +46,7 @@ func MatchEventType(s string) (EventType, bool) {
 }
 
 type Event struct {
+	Host            string
 	Timestamp       time.Time
 	Type            EventType
 	HardwareAddress net.HardwareAddr
@@ -51,10 +54,13 @@ type Event struct {
 	User            string
 	Service         string
 	Sensor          string
-	Source          string
 }
 
 func (e *Event) String() string {
+	host := "-"
+	if e.Host != "" {
+		host = e.Host
+	}
 	timestamp := e.Timestamp.Format(time.RFC3339)
 	mac := "-"
 	if e.HardwareAddress != nil {
@@ -72,7 +78,7 @@ func (e *Event) String() string {
 	if e.Service != "" {
 		service = e.Service
 	}
-	return fmt.Sprintf("timestamp:%s type:%s MAC:%s IP:%s User:%s Service:%s", timestamp, e.Type, mac, ip, user, service)
+	return fmt.Sprintf("host:%s timestamp:%s type:%s MAC:%s IP:%s User:%s Service:%s", host, timestamp, e.Type, mac, ip, user, service)
 }
 
 type EventReceiver interface {
@@ -86,7 +92,45 @@ func (f EventReceiverFunc) Queue(event *Event) {
 }
 
 type EventSource interface {
+	Name() string
 	Collect(receiver EventReceiver) error
 	Shutdown(ctx context.Context) error
 	Close() error
+}
+
+type Sensor struct {
+	name   string
+	source EventSource
+}
+
+var sensorNames map[string]int = make(map[string]int)
+var sensorNamesMutex sync.Mutex = sync.Mutex{}
+
+func New(name string, source EventSource) *Sensor {
+	sensorNamesMutex.Lock()
+	defer sensorNamesMutex.Unlock()
+
+	baseName := fmt.Sprintf("%s/%s#", source.Name(), name)
+	instance := sensorNames[baseName] + 1
+	sensorNames[baseName] = instance
+	return &Sensor{
+		name:   baseName + strconv.Itoa(instance),
+		source: source,
+	}
+}
+
+func (s *Sensor) Name() string {
+	return s.name
+}
+
+func (s *Sensor) Collect(receiver EventReceiver) error {
+	return s.source.Collect(receiver)
+}
+
+func (s *Sensor) Shutdown(ctx context.Context) error {
+	return s.source.Shutdown(ctx)
+}
+
+func (s *Sensor) Close() error {
+	return s.source.Close()
 }

@@ -18,7 +18,6 @@ package netscanner
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -31,20 +30,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-httpserver"
-	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/go-tlsconf/tlsclient"
+	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/metrics"
+	"github.com/tdrn-org/netscanner/internal/web"
+	"github.com/tdrn-org/netscanner/logmatcher"
 	"github.com/tdrn-org/netscanner/sensor"
 )
-
-var ErrUnknownProfile error = errors.New("unknown profile")
 
 type Server struct {
 	config          *Config
 	httpServer      *httpserver.Instance
 	baseURL         *url.URL
-	datastore       *database.Driver
+	store           *datastore.Store
 	metricsRecorder metrics.Recorder
-	activeProfile   ServerProfile
+	sensors         map[string]*sensor.Sensor
+	logMatchers     map[string]*logmatcher.Index
 	mutex           sync.RWMutex
 	logger          *slog.Logger
 }
@@ -54,13 +55,16 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 	// We will reset the logger after listener has been created.
 	earlyLogger := slog.With(slog.String("address", config.Server.Address))
 	s := &Server{
-		config: config,
-		logger: earlyLogger,
+		config:      config,
+		sensors:     map[string]*sensor.Sensor{},
+		logMatchers: map[string]*logmatcher.Index{},
+		logger:      earlyLogger,
 	}
 	startFuncs := []func(ctx context.Context, config *Config) error{
 		s.startHttpServer,
 		s.startDatastore,
 		s.startMetrics,
+		s.startSensors,
 	}
 	for _, startFunc := range startFuncs {
 		err := startFunc(ctx, config)
@@ -79,6 +83,10 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
+	err = web.MountStatics(httpServer)
+	if err != nil {
+		return err
+	}
 	httpServer.HandleFunc("GET /ping", s.handlePingGet)
 	s.httpServer = httpServer
 	if config.Server.PublicURL.URL != nil {
@@ -86,14 +94,14 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	} else {
 		s.baseURL = httpServer.BaseURL()
 	}
-	// Replace early logger by one attributed by actual URL
+	// Replace early logger by one attributed with actual URL
 	s.logger = slog.With(slog.String("baseURL", s.baseURL.String()))
 	return nil
 }
 
 func (s *Server) handlePingGet(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
-	err := s.datastore.Ping(r.Context())
+	err := s.store.Ping(r.Context())
 	if err != nil {
 		s.logger.Warn("datastore ping failure", slog.Any("err", err))
 		status = http.StatusInternalServerError
@@ -120,23 +128,23 @@ func (s *Server) startDatastore(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
-	datastore, err := database.Open(datastoreConfig)
+	driver, err := database.Open(datastoreConfig)
 	if err != nil {
 		return err
 	}
-	_, _, err = datastore.UpdateSchema(ctx)
+	_, _, err = driver.UpdateSchema(ctx)
 	if err != nil {
-		return errors.Join(err, datastore.Close())
+		return errors.Join(err, driver.Close())
 	}
-	s.datastore = datastore
+	s.store = datastore.New(driver)
 	return nil
 }
 
 func (s *Server) closeDatastore() error {
-	if s.datastore == nil {
+	if s.store == nil {
 		return nil
 	}
-	return s.datastore.Close()
+	return s.store.Close()
 }
 
 func (s *Server) startMetrics(ctx context.Context, config *Config) error {
@@ -157,17 +165,52 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func (s *Server) Run(ctx context.Context, profileName string) error {
-	if profileName != "" {
-		profile, err := s.GetProfile(ctx, profileName)
-		if err == nil {
-			s.logger.Info("activating profile", slog.String("profile", profileName))
-			s.activeProfile = profile
-			s.activeProfile.Start(ctx)
-		} else {
-			s.logger.Warn("failed to activate profile", slog.String("profile", profileName), slog.Any("err", err))
+func (s *Server) startSensors(ctx context.Context, config *Config) error {
+	for sensorConfig := range s.config.Sensors.Configs() {
+		sensor, err := s.AddSensor(ctx, sensorConfig)
+		if err != nil {
+			s.logger.Warn("failed to add sensor", slog.Any("sensor", sensorConfig), slog.Any("err", err))
+			continue
+		}
+		go func() {
+			err := sensor.Collect(s.eventReceiver())
+			if err != nil {
+				s.logger.Error("collect failure", slog.Any("sensor", sensor), slog.Any("err", err))
+			}
+		}()
+	}
+	return nil
+}
+
+func (s *Server) shutdownSensors(ctx context.Context) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	shutdownErrs := make([]error, 0, len(s.sensors))
+	for _, sensor := range s.sensors {
+		err := sensor.Shutdown(ctx)
+		if err != nil {
+			shutdownErrs = append(shutdownErrs, err)
 		}
 	}
+	return errors.Join(shutdownErrs...)
+}
+
+func (s *Server) closeSensors() error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	closeErrs := make([]error, 0, len(s.sensors))
+	for _, sensor := range s.sensors {
+		err := sensor.Close()
+		if err != nil {
+			closeErrs = append(closeErrs, err)
+		}
+	}
+	return errors.Join(closeErrs...)
+}
+
+func (s *Server) Run(ctx context.Context) error {
 	s.logger.Info("serving HTTP requests...")
 	err := s.httpServer.Serve()
 	if !errors.Is(err, http.ErrServerClosed) {
@@ -180,12 +223,9 @@ func (s *Server) Ping(ctx context.Context) error {
 	if s.httpServer == nil {
 		return fmt.Errorf("server not started")
 	}
-	insecureSkipVerify := true
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: insecureSkipVerify,
-			},
+			TLSClientConfig: tlsclient.GetConfig(),
 		},
 	}
 	pingURL := s.httpServer.BaseURL().JoinPath("/ping").String()
@@ -205,7 +245,7 @@ func (s *Server) Stop(ctx context.Context) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	shutdownFuncs := []func(ctx context.Context) error{
-		s.shutdownActiveProfile,
+		s.shutdownSensors,
 		s.shutdownHttpServer,
 	}
 	shutdownErrs := make([]error, 0, len(shutdownFuncs))
@@ -218,23 +258,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return errors.Join(shutdownErrs...)
 }
 
-func (s *Server) shutdownActiveProfile(ctx context.Context) error {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	return s.shutdownActiveProfileLocked(ctx)
-}
-
-func (s *Server) shutdownActiveProfileLocked(ctx context.Context) error {
-	if s.activeProfile == nil {
-		return nil
-	}
-	return s.activeProfile.Shutdown(ctx)
-}
-
 func (s *Server) Close() error {
 	closeFuncs := []func() error{
-		s.closeActiveProfile,
+		s.closeSensors,
 		s.closeHttpServer,
 		s.closeDatastore,
 	}
@@ -245,63 +271,8 @@ func (s *Server) Close() error {
 	return errors.Join(closeErrs...)
 }
 
-func (s *Server) closeActiveProfile() error {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	return s.closeProfilesLocked()
-}
-
-func (s *Server) closeProfilesLocked() error {
-	if s.activeProfile == nil {
-		return nil
-	}
-	err := s.activeProfile.Close()
-	s.activeProfile = nil
-	return err
-}
-
-func (s *Server) AddProfile(ctx context.Context, profile *Profile) error {
-	txCtx, tx, err := s.datastore.BeginTx(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.EndTx(txCtx)
-
-	err = model.DeleteProfileByName(ctx, s.datastore, profile.Name)
-	if err != nil {
-		return err
-	}
-	err = profile.toModel(s.datastore).Insert(txCtx)
-	if err != nil {
-		return err
-	}
-
-	err = tx.CommitTx(txCtx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *Server) GetProfileNames(ctx context.Context) ([]string, error) {
-	return model.SelectProfileNames(ctx, s.datastore)
-}
-
-func (s *Server) GetProfile(ctx context.Context, name string) (ServerProfile, error) {
-	model, err := model.SelectProfileByName(ctx, s.datastore, name)
-	if err != nil {
-		return nil, err
-	}
-	if model == nil {
-		return nil, ErrUnknownProfile
-	}
-	profile := &serverProfile{
-		receiver: sensor.EventReceiverFunc(s.queueEvent),
-		model:    model,
-		logger:   s.logger.With(slog.String("profile", model.Name)),
-	}
-	return profile, nil
+func (s *Server) eventReceiver() sensor.EventReceiver {
+	return sensor.EventReceiverFunc(s.queueEvent)
 }
 
 func (s *Server) queueEvent(event *sensor.Event) {

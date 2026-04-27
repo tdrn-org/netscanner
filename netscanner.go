@@ -33,8 +33,7 @@ import (
 )
 
 func RunArgs(ctx context.Context, args []string) error {
-	cmdLine := &cmdLine{ctx: ctx}
-	cmdParser, err := kong.New(cmdLine, cmdLineApplication, cmdLineHelpOptions, cmdLineVars)
+	cmdParser, err := kong.New(&cmdLine{}, kong.BindTo(ctx, (*context.Context)(nil)), cmdLineApplication, cmdLineHelpOptions, cmdLineVars)
 	if err != nil {
 		return err
 	}
@@ -56,22 +55,20 @@ var cmdLineVars = kong.Vars{
 }
 
 type cmdLine struct {
-	Silent      bool            `short:"s" help:"Enable silent mode (log level error)"`
-	Quiet       bool            `short:"q" help:"Enable quiet mode (log level warn)"`
-	Verbose     bool            `short:"v" help:"Enable verbose output (log level info)"`
-	Debug       bool            `short:"d" help:"Enable debug output (log level debug)"`
-	RunCmd      runCmd          `cmd:"" name:"run" default:"withargs" help:"Run server"`
-	VersionCmd  versionCmd      `cmd:"" name:"version" help:"Show version info"`
-	TemplateCmd templateCmd     `cmd:"" name:"template" help:"Output config template"`
-	ctx         context.Context `kong:"-"`
+	Silent      bool        `short:"s" help:"Enable silent mode (log level error)"`
+	Quiet       bool        `short:"q" help:"Enable quiet mode (log level warn)"`
+	Verbose     bool        `short:"v" help:"Enable verbose output (log level info)"`
+	Debug       bool        `short:"d" help:"Enable debug output (log level debug)"`
+	RunCmd      runCmd      `cmd:"" name:"run" default:"withargs" help:"Run server"`
+	VersionCmd  versionCmd  `cmd:"" name:"version" help:"Show version info"`
+	TemplateCmd templateCmd `cmd:"" name:"template" help:"Output config template"`
 }
 
 type runCmd struct {
-	Config  string `short:"c" help:"The configuration file to use" default:"${config_default}"`
-	Profile string `short:"p" help:"The profile to activate on startup"`
+	Config string `short:"c" help:"The configuration file to use" default:"${config_default}"`
 }
 
-func (cmd *runCmd) Run(args *cmdLine) error {
+func (cmd *runCmd) Run(ctx context.Context, args *cmdLine) error {
 	path := strings.TrimSpace(cmd.Config)
 	if path == "" {
 		path = DefaultConfigPath()
@@ -82,25 +79,25 @@ func (cmd *runCmd) Run(args *cmdLine) error {
 	}
 	cmd.applyGlobalArgs(config, args)
 	config.Logging.apply()
-	server, err := StartServer(args.ctx, config)
+	server, err := StartServer(ctx, config)
 	if err != nil {
 		return err
 	}
 	stoppedWG := sync.WaitGroup{}
 	stoppedWG.Go(func() {
-		err = server.Run(args.ctx, cmd.Profile)
+		err = server.Run(ctx)
 	})
 	go func() {
 		sigint := make(chan os.Signal, 1)
 		signal.Notify(sigint, os.Interrupt)
-		sigintCtx, cancelListenAndServe := context.WithCancel(args.ctx)
+		sigintCtx, cancelListenAndServe := context.WithCancel(ctx)
 		go func() {
 			<-sigint
 			slog.Info("signal SIGINT; stopping")
 			cancelListenAndServe()
 		}()
 		<-sigintCtx.Done()
-		server.Shutdown(args.ctx)
+		server.Shutdown(ctx)
 	}()
 	stoppedWG.Wait()
 	if err == nil {
@@ -125,7 +122,7 @@ type versionCmd struct {
 	Extended bool `short:"x" help:"Output extended version info"`
 }
 
-func (cmd *versionCmd) Run(args *cmdLine) error {
+func (cmd *versionCmd) Run(_ context.Context, args *cmdLine) error {
 	fmt.Println(buildinfo.FullVersion())
 	if args.VersionCmd.Extended {
 		fmt.Println(buildinfo.Extended())
@@ -143,7 +140,7 @@ type templateCmd struct {
 //go:embed config_template.toml
 var configTemplate string
 
-func (cmd *templateCmd) Run(args *cmdLine) error {
+func (cmd *templateCmd) Run(_ context.Context, args *cmdLine) error {
 	if cmd.Diff == "" {
 		fmt.Print(configTemplate)
 	} else {

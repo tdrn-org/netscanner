@@ -98,7 +98,7 @@ var syslogReceiver sensor.EventReceiverFunc = func(event *sensor.Event) {
 }
 
 func testIndex(t *testing.T) *logmatcher.Index {
-	index := logmatcher.NewIndex("syslog", logmatcher.FieldsTokenizer)
+	index := logmatcher.NewIndex("syslog")
 	file, err := os.Open("testdata/index.txt")
 	require.NoError(t, err)
 	defer file.Close()

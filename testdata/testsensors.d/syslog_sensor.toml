@@ -1,0 +1,5 @@
+[syslog_sensor]
+name = "syslog1"
+network = "tcp"
+address = "localhost:1514"
+log_matcher = "syslog"

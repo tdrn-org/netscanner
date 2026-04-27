@@ -40,3 +40,6 @@ enabled = false
 path = "/metrics"
 process = false
 sensors = true
+
+[sensors]
+include = "./sensors.d"

@@ -15,3 +15,51 @@
  */
 
 package datastore
+
+import (
+	"context"
+
+	"github.com/tdrn-org/go-database"
+	"github.com/tdrn-org/netscanner/internal/datastore/model"
+)
+
+type Store struct {
+	driver *database.Driver
+}
+
+func New(driver *database.Driver) *Store {
+	return &Store{
+		driver: driver,
+	}
+}
+
+func (s *Store) Close() error {
+	return s.driver.Close()
+}
+
+func (s *Store) Ping(ctx context.Context) error {
+	return s.driver.Ping(ctx)
+}
+
+func (s *Store) SelectOrCreateLogMatcherIndex(ctx context.Context, name string) (*model.LogMatcherIndex, error) {
+	txCtx, tx, err := s.driver.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.RollbackUncommitedTx(txCtx)
+
+	index, err := model.SelectLogMatcherIndexByName(txCtx, s.driver, name)
+	if database.NoRows(err) {
+		index = model.NewLogMatcherIndex(s.driver, name)
+		err = index.Insert(txCtx)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.CommitTx(txCtx)
+	if err != nil {
+		return nil, err
+	}
+	return index, nil
+}

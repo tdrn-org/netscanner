@@ -3,7 +3,6 @@
 	"log_matchers": {
 		"test_log_matcher": {
 			"name": "test_log_matcher",
-			"tokenizer": "test_tokenizer",
 			"entries": [
 				{
 					"service": "sshd",

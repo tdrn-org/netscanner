@@ -71,7 +71,7 @@ func TestIndexResolveValues(t *testing.T) {
 }
 
 func emptyTestIndex(_ *testing.T) *logmatcher.Index {
-	return logmatcher.NewIndex("test", logmatcher.FieldsTokenizer)
+	return logmatcher.NewIndex("test")
 }
 
 func buildTestIndex(t *testing.T) *logmatcher.Index {

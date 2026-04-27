@@ -18,11 +18,16 @@ package netscanner
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
+	"iter"
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
+	"slices"
 
 	"github.com/BurntSushi/toml"
 	"github.com/rs/cors"
@@ -35,6 +40,7 @@ import (
 	"github.com/tdrn-org/go-httpserver/certificate"
 	"github.com/tdrn-org/go-log"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
 type Config struct {
@@ -42,6 +48,7 @@ type Config struct {
 	Server    ServerConfig    `toml:"server"`
 	Datastore DatastoreConfig `toml:"datastore"`
 	Metrics   MetricsConfig   `toml:"metrics"`
+	Sensors   SensorsConfig   `toml:"sensors"`
 }
 
 type LoggingConfig struct {
@@ -172,6 +179,93 @@ type MetricsConfig struct {
 	Sensors bool   `toml:"sensors"`
 }
 
+type SensorsConfig struct {
+	Include string `toml:"include"`
+	sensors []*SensorConfig
+}
+
+func (c *SensorsConfig) load(dir string, strict bool) error {
+	include := c.Include
+	if !filepath.IsAbs(c.Include) {
+		include = filepath.Join(dir, c.Include)
+	}
+	entries, err := os.ReadDir(include)
+	if errors.Is(err, os.ErrNotExist) {
+		slog.Warn("no sensors include directory", slog.String("include", include))
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to read sensors include directory '%s' (cause: %w)", include, err)
+	}
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() {
+			continue
+		}
+		sensorConfigFile := filepath.Join(include, entry.Name())
+		logger := slog.With(slog.String("file", sensorConfigFile))
+		sensorConfig := &SensorConfig{}
+		logger.Info("loading sensor config")
+		meta, err := toml.DecodeFile(sensorConfigFile, sensorConfig)
+		if err != nil {
+			return fmt.Errorf("failed to decode sensor config '%s' (cause: %w)", sensorConfigFile, err)
+		}
+		err = sensorConfig.validate()
+		if err != nil {
+			return fmt.Errorf("invalid sensor config '%s' (cause: %w)", sensorConfigFile, err)
+		}
+		strictViolation := false
+		for _, key := range meta.Undecoded() {
+			strictViolation = true
+			logger.Warn("unexpected configuration key", slog.Any("key", key))
+		}
+		if strict && strictViolation {
+			return fmt.Errorf("sensor config contains unexpected keys")
+		}
+		c.sensors = append(c.sensors, sensorConfig)
+	}
+	return nil
+}
+
+func (c *SensorsConfig) Configs() iter.Seq[*SensorConfig] {
+	return slices.Values(c.sensors)
+}
+
+type SensorConfig struct {
+	SyslogSensor *SyslogSensorConfig `toml:"syslog_sensor"`
+}
+
+func (c *SensorConfig) validate() error {
+	sensorCount := 0
+	if c.SyslogSensor != nil {
+		sensorCount++
+	}
+	switch sensorCount {
+	case 0:
+		return fmt.Errorf("no sensor configuration")
+	case 1:
+		return nil
+	default:
+		return fmt.Errorf("non-unique sensor configuration")
+	}
+}
+
+func (c *SensorConfig) String() string {
+	if c.SyslogSensor != nil {
+		return c.SyslogSensor.String()
+	}
+	return ""
+}
+
+type SyslogSensorConfig struct {
+	Name       string        `toml:"name"`
+	Network    SyslogNetwork `toml:"network"`
+	Address    string        `toml:"address"`
+	LogMatcher string        `toml:"log_matcher"`
+}
+
+func (c *SyslogSensorConfig) String() string {
+	return fmt.Sprintf("%s/%s[%s://%s]", syslog.Name, c.Name, c.Network, c.Address)
+}
+
 //go:embed config_defaults.toml
 var configDefaultsData string
 
@@ -184,10 +278,23 @@ func DefaultConfig() (*Config, error) {
 	for _, key := range meta.Undecoded() {
 		slog.Warn("unexpected default configuration key", slog.Any("key", key))
 	}
+	config.Sensors.sensors = []*SensorConfig{}
 	return config, nil
 }
 
 func LoadConfig(file string, strict bool) (*Config, error) {
+	config, err := loadRootConfig(file, strict)
+	if err != nil {
+		return nil, err
+	}
+	err = config.Sensors.load(filepath.Dir(file), strict)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func loadRootConfig(file string, strict bool) (*Config, error) {
 	logger := slog.With(slog.String("file", file))
 	logger.Info("loading config")
 	config, err := DefaultConfig()
@@ -392,6 +499,47 @@ func (t *DatabaseType) UnmarshalTOML(value any) error {
 		return fmt.Errorf("unknown database type: '%s'", databaseTypeString)
 	}
 	*t = databaseType
+	return nil
+}
+
+type SyslogNetwork string
+
+var knownSyslogNetworks map[string]SyslogNetwork = map[string]SyslogNetwork{
+	"tcp":      SyslogNetwork("tcp"),
+	"tcp4":     SyslogNetwork("tcp4"),
+	"tcp6":     SyslogNetwork("tcp6"),
+	"tcp+tls":  SyslogNetwork("tcp+tls"),
+	"tcp4+tls": SyslogNetwork("tcp4+tls"),
+	"tcp6+tls": SyslogNetwork("tcp6+tls"),
+	"udp":      SyslogNetwork("udp"),
+	"udp4":     SyslogNetwork("udp4"),
+	"udp6":     SyslogNetwork("udp6"),
+}
+
+func (n *SyslogNetwork) Value() string {
+	for value, network := range knownSyslogNetworks {
+		if *n == network {
+			return value
+		}
+	}
+	slog.Warn("unexpected syslog network", slog.Any("n", *n))
+	return ""
+}
+
+func (n *SyslogNetwork) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + n.Value() + `"`), nil
+}
+
+func (n *SyslogNetwork) UnmarshalTOML(value any) error {
+	networkString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected syslog network type %v", value)
+	}
+	network, ok := knownSyslogNetworks[networkString]
+	if !ok {
+		return fmt.Errorf("unknown syslog network: '%s'", networkString)
+	}
+	*n = network
 	return nil
 }
 

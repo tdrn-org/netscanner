@@ -38,12 +38,16 @@ type Index struct {
 	logger     *slog.Logger
 }
 
-func NewIndex(name string, tokenizer Tokenizer) *Index {
+func NewIndex(name string) *Index {
 	return &Index{
 		name:      name,
-		tokenizer: tokenizer,
+		tokenizer: FieldsTokenizer,
 		logger:    slog.With(slog.String(reflect.TypeFor[Index]().String(), name)),
 	}
+}
+
+func (i *Index) Name() string {
+	return i.name
 }
 
 func (i *Index) Load(r io.Reader) error {

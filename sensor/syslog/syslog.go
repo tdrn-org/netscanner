@@ -193,14 +193,14 @@ func queueSyslogMessages(index *logmatcher.Index, receiver sensor.EventReceiver,
 		case *log.UndecodedSyslogMessage:
 			logger.Warn("undecoded syslog message", slog.String("message", message.String()))
 		case *log.RFC3164SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.MessageContent, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.MessageContent)
 		case *log.RFC5424SyslogMessage:
-			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.Msg, message.UndecodedSyslogMessage.String())
+			queueSyslogMessage(index, receiver, message.Hostname, message.Timestamp, message.Msg)
 		}
 	}
 }
 
-func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, host string, timestamp time.Time, message string, source string) {
+func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, host string, timestamp time.Time, message string) {
 	resolved := index.ResolveValues(message)
 	if resolved != nil {
 		event := &sensor.Event{

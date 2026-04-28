@@ -17,7 +17,7 @@ key_file = ""
 public_url = ""
 trusted_proxies = [ ]
 trusted_headers = [ ]
-allowed_origins = []
+allowed_origins = [ ]
 access_log = ""
 access_log_size_limit = 0
 

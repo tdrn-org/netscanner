@@ -16,3 +16,6 @@ CREATE TABLE log_matcher_index_entry(
 --
 -- EOF
 --
+INSERT INTO log_matcher_index(name,version) VALUES('syslog1',1);
+INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','denied','Connection reset by authenticating user {User} {IP} port {Any} [preauth]');
+INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','denied','Accepted publickey for {User} from {IP} port {Any} ssh2: RSA');

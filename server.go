@@ -23,6 +23,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -31,7 +33,9 @@ import (
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-tlsconf/tlsclient"
+	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/internal/datastore"
+	"github.com/tdrn-org/netscanner/internal/device"
 	"github.com/tdrn-org/netscanner/internal/metrics"
 	"github.com/tdrn-org/netscanner/internal/web"
 	"github.com/tdrn-org/netscanner/logmatcher"
@@ -44,6 +48,8 @@ type Server struct {
 	baseURL         *url.URL
 	store           *datastore.Store
 	metricsRecorder metrics.Recorder
+	deviceInfos     *device.InfoCache
+	defaultHost     string
 	sensors         map[string]*sensor.Sensor
 	logMatchers     map[string]*logmatcher.Index
 	mutex           sync.RWMutex
@@ -166,7 +172,20 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 }
 
 func (s *Server) startSensors(ctx context.Context, config *Config) error {
-	for sensorConfig := range s.config.Sensors.Configs() {
+	deviceInfos, err := device.NewInfoCache(dns.NewResolverProvider(nil, nil))
+	if err != nil {
+		return fmt.Errorf("failed to setup device info cache (cause: %w)", err)
+	}
+	s.deviceInfos = deviceInfos
+	s.defaultHost = strings.TrimSpace(config.Sensors.DefaultHost)
+	if s.defaultHost == "" {
+		host, err := os.Hostname()
+		if err != nil {
+			return fmt.Errorf("failed to retrieve host name (cause: %w)", err)
+		}
+		s.defaultHost = host
+	}
+	for sensorConfig := range config.Sensors.Configs() {
 		sensor, err := s.AddSensor(ctx, sensorConfig)
 		if err != nil {
 			s.logger.Warn("failed to add sensor", slog.Any("sensor", sensorConfig), slog.Any("err", err))
@@ -200,9 +219,15 @@ func (s *Server) closeSensors() error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	closeErrs := make([]error, 0, len(s.sensors))
+	closeErrs := make([]error, 0, len(s.sensors)+1)
 	for _, sensor := range s.sensors {
 		err := sensor.Close()
+		if err != nil {
+			closeErrs = append(closeErrs, err)
+		}
+	}
+	if s.deviceInfos != nil {
+		err := s.deviceInfos.Close()
 		if err != nil {
 			closeErrs = append(closeErrs, err)
 		}
@@ -269,12 +294,4 @@ func (s *Server) Close() error {
 		closeErrs = append(closeErrs, closeFunc())
 	}
 	return errors.Join(closeErrs...)
-}
-
-func (s *Server) eventReceiver() sensor.EventReceiver {
-	return sensor.EventReceiverFunc(s.queueEvent)
-}
-
-func (s *Server) queueEvent(event *sensor.Event) {
-	s.logger.Info(event.String())
 }

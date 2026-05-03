@@ -23,21 +23,24 @@ import (
 	"net/netip"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type EventType string
 
 const (
-	EventTypeGranted EventType = "granted"
-	EventTypeDenied  EventType = "denied"
-	EventTypeError   EventType = "error"
+	EventTypeInformational EventType = "informational"
+	EventTypeGranted       EventType = "granted"
+	EventTypeDenied        EventType = "denied"
+	EventTypeError         EventType = "error"
 )
 
 var eventTypeMap map[string]EventType = map[string]EventType{
-	string(EventTypeGranted): EventTypeGranted,
-	string(EventTypeDenied):  EventTypeDenied,
-	string(EventTypeError):   EventTypeError,
+	string(EventTypeInformational): EventTypeInformational,
+	string(EventTypeGranted):       EventTypeGranted,
+	string(EventTypeDenied):        EventTypeDenied,
+	string(EventTypeError):         EventTypeError,
 }
 
 func MatchEventType(s string) (EventType, bool) {
@@ -82,13 +85,13 @@ func (e *Event) String() string {
 }
 
 type EventReceiver interface {
-	Queue(event *Event)
+	Queue(ctx context.Context, event *Event)
 }
 
-type EventReceiverFunc func(event *Event)
+type EventReceiverFunc func(ctx context.Context, event *Event)
 
-func (f EventReceiverFunc) Queue(event *Event) {
-	f(event)
+func (f EventReceiverFunc) Queue(ctx context.Context, event *Event) {
+	f(ctx, event)
 }
 
 type EventSource interface {
@@ -99,8 +102,9 @@ type EventSource interface {
 }
 
 type Sensor struct {
-	name   string
-	source EventSource
+	name         string
+	source       EventSource
+	eventCounter atomic.Uint64
 }
 
 var sensorNames map[string]int = make(map[string]int)
@@ -124,7 +128,14 @@ func (s *Sensor) Name() string {
 }
 
 func (s *Sensor) Collect(receiver EventReceiver) error {
-	return s.source.Collect(receiver)
+	return s.source.Collect(EventReceiverFunc(func(ctx context.Context, event *Event) {
+		s.eventCounter.Add(1)
+		receiver.Queue(ctx, event)
+	}))
+}
+
+func (s *Sensor) EventCounter() uint64 {
+	return s.eventCounter.Load()
 }
 
 func (s *Sensor) Shutdown(ctx context.Context) error {

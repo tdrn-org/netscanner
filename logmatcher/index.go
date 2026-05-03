@@ -63,22 +63,30 @@ func (i *Index) Load(r io.Reader) error {
 		}
 		line = strings.TrimSpace(line)
 		if line != "" {
-			lineSplit := strings.SplitN(line, ":", 3)
-			if len(lineSplit) != 3 {
-				return fmt.Errorf("unrecognized index line: '%s'", line)
+			service, eventType, match, err := i.decodeMatchLine(line)
+			if err != nil {
+				return err
 			}
-			source := strings.TrimSpace(lineSplit[0])
-			eventType, ok := sensor.MatchEventType(strings.TrimSpace(lineSplit[1]))
-			if !ok {
-				return fmt.Errorf("unrecognized event type in line: '%s'", line)
-			}
-			match := ParseMatch(strings.TrimSpace(lineSplit[2]))
-			i.addMatch(source, eventType, match...)
+			i.addMatchLocked(service, eventType, match...)
 		}
 		if eof {
 			return nil
 		}
 	}
+}
+
+func (i *Index) decodeMatchLine(line string) (string, sensor.EventType, Match, error) {
+	lineSplit := strings.SplitN(line, ":", 3)
+	if len(lineSplit) != 3 {
+		return "", "", nil, fmt.Errorf("unrecognized index line: '%s'", line)
+	}
+	service := strings.TrimSpace(lineSplit[0])
+	eventType, ok := sensor.MatchEventType(strings.TrimSpace(lineSplit[1]))
+	if !ok {
+		return "", "", nil, fmt.Errorf("unrecognized event type in line: '%s'", line)
+	}
+	match := ParseMatch(strings.TrimSpace(lineSplit[2]))
+	return service, eventType, match, nil
 }
 
 func (i *Index) Save(w io.Writer) (int, error) {
@@ -92,10 +100,10 @@ func (i *Index) AddMatch(service string, eventType sensor.EventType, match ...Va
 	i.mutex.Lock()
 	defer i.mutex.Unlock()
 
-	i.addMatch(service, eventType, match...)
+	i.addMatchLocked(service, eventType, match...)
 }
 
-func (i *Index) addMatch(service string, eventType sensor.EventType, match ...Value) {
+func (i *Index) addMatchLocked(service string, eventType sensor.EventType, match ...Value) {
 	if len(match) == 0 {
 		return
 	}

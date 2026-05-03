@@ -213,6 +213,6 @@ func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, 
 			Service:         resolved.Service,
 			Sensor:          Name,
 		}
-		receiver.Queue(event)
+		receiver.Queue(context.Background(), event)
 	}
 }

@@ -1,0 +1,21 @@
+OUI/MA-L                                                    Organization                                 
+company_id                                                  Organization                                 
+                                                            Address                                      
+
+00-22-72   (hex)		American Micro-Fuel Device Corp.
+002272     (base 16)		American Micro-Fuel Device Corp.
+				2181 Buchanan Loop
+				Ferndale  WA  98248
+				US
+
+00-D0-EF   (hex)		IGT
+00D0EF     (base 16)		IGT
+				9295 PROTOTYPE DRIVE
+				RENO  NV  89511
+				US
+
+08-61-95   (hex)		Rockwell Automation
+086195     (base 16)		Rockwell Automation
+				1 Allen-Bradley Dr.
+				Mayfield Heights  OH  44124-6118
+				US

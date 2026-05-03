@@ -37,7 +37,7 @@ func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.S
 
 func (s *Server) addSyslogSensor(ctx context.Context, config *SyslogSensorConfig) (*sensor.Sensor, error) {
 	s.logger.Info("adding sensor", slog.Any("sensor", config))
-	index, err := s.resolveLogMatcher(ctx, config.LogMatcher)
+	index, err := s.resolveLogMatcherIndex(ctx, config.LogMatcherIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (s *Server) addSyslogSensor(ctx context.Context, config *SyslogSensorConfig
 	return sensor, nil
 }
 
-func (s *Server) resolveLogMatcher(ctx context.Context, name string) (*logmatcher.Index, error) {
+func (s *Server) resolveLogMatcherIndex(ctx context.Context, name string) (*logmatcher.Index, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -81,4 +81,25 @@ func (s *Server) resolveLogMatcherLocked(ctx context.Context, name string) (*log
 	index = indexModel.ToIndex()
 	s.logMatchers[name] = index
 	return index, nil
+}
+
+func (s *Server) eventReceiver() sensor.EventReceiver {
+	return sensor.EventReceiverFunc(s.queueEvent)
+}
+
+func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
+	s.recordEventInfos(ctx, event)
+	if event.Type != sensor.EventTypeInformational {
+		s.recordEvent(ctx, event)
+	}
+}
+
+func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
+	// TODO
+	s.logger.Info(event.String())
+}
+
+func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
+	deviceInfo := s.deviceInfos.Lookup(ctx, event.IPAddress)
+	s.logger.Info(deviceInfo.String())
 }

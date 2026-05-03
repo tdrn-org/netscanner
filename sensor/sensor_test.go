@@ -80,7 +80,7 @@ func (s *testSensor) Collect(receiver sensor.EventReceiver) error {
 		case <-time.After(time.Second):
 			event := *s.event
 			event.Timestamp = time.Now()
-			receiver.Queue(&event)
+			receiver.Queue(context.Background(), &event)
 		case <-s.ctx.Done():
 			return nil
 		}

@@ -43,3 +43,4 @@ sensors = true
 
 [sensors]
 include = "./sensors.d"
+default_host = ""

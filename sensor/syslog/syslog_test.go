@@ -18,6 +18,7 @@ package syslog_test
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -93,7 +94,7 @@ func runSyslogSensor(t *testing.T, sensor syslog.Sensor, network string) {
 	require.NoError(t, err)
 }
 
-var syslogReceiver sensor.EventReceiverFunc = func(event *sensor.Event) {
+var syslogReceiver sensor.EventReceiverFunc = func(_ context.Context, event *sensor.Event) {
 	fmt.Println(event.String())
 }
 

@@ -46,6 +46,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/maypok86/otter/v2 v2.3.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/tdrn-org/go-database v0.0.4

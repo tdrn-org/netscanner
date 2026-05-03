@@ -40,6 +40,7 @@ import (
 	"github.com/tdrn-org/go-httpserver/certificate"
 	"github.com/tdrn-org/go-log"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/netscanner/sensor/logfile"
 	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
@@ -180,8 +181,9 @@ type MetricsConfig struct {
 }
 
 type SensorsConfig struct {
-	Include string `toml:"include"`
-	sensors []*SensorConfig
+	Include     string `toml:"include"`
+	DefaultHost string `toml:"default_host"`
+	sensors     []*SensorConfig
 }
 
 func (c *SensorsConfig) load(dir string, strict bool) error {
@@ -230,12 +232,16 @@ func (c *SensorsConfig) Configs() iter.Seq[*SensorConfig] {
 }
 
 type SensorConfig struct {
-	SyslogSensor *SyslogSensorConfig `toml:"syslog_sensor"`
+	SyslogSensor  *SyslogSensorConfig  `toml:"syslog_sensor"`
+	LogFileSensor *LogFileSensorConfig `toml:"logfile_sensor"`
 }
 
 func (c *SensorConfig) validate() error {
 	sensorCount := 0
 	if c.SyslogSensor != nil {
+		sensorCount++
+	}
+	if c.LogFileSensor != nil {
 		sensorCount++
 	}
 	switch sensorCount {
@@ -252,18 +258,31 @@ func (c *SensorConfig) String() string {
 	if c.SyslogSensor != nil {
 		return c.SyslogSensor.String()
 	}
+	if c.LogFileSensor != nil {
+		return c.LogFileSensor.String()
+	}
 	return ""
 }
 
 type SyslogSensorConfig struct {
-	Name       string        `toml:"name"`
-	Network    SyslogNetwork `toml:"network"`
-	Address    string        `toml:"address"`
-	LogMatcher string        `toml:"log_matcher"`
+	Name            string        `toml:"name"`
+	Network         SyslogNetwork `toml:"network"`
+	Address         string        `toml:"address"`
+	LogMatcherIndex string        `toml:"log_matcher_index"`
 }
 
 func (c *SyslogSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s://%s]", syslog.Name, c.Name, c.Network, c.Address)
+}
+
+type LogFileSensorConfig struct {
+	Name            string `toml:"name"`
+	File            string `toml:"file"`
+	LogMatcherIndex string `toml:"log_matcher_index"`
+}
+
+func (c *LogFileSensorConfig) String() string {
+	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
 }
 
 //go:embed config_defaults.toml

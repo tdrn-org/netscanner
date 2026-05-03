@@ -49,9 +49,10 @@ type InfoCache struct {
 	cache    cache.KeyValue[netip.Addr, *Info]
 }
 
-func NewInfoCache(dns dns.Provider) (*InfoCache, error) {
+func NewInfoCache(networks *network.Names, dns dns.Provider) (*InfoCache, error) {
 	c := &InfoCache{
-		dns: dns,
+		networks: networks,
+		dns:      dns,
 	}
 	// TODO: Cache configuration
 	cache, err := memory.NewKeyValue(0, time.Hour, c.loadInfo)

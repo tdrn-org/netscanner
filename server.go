@@ -39,6 +39,7 @@ import (
 	"github.com/tdrn-org/netscanner/internal/metrics"
 	"github.com/tdrn-org/netscanner/internal/web"
 	"github.com/tdrn-org/netscanner/logmatcher"
+	"github.com/tdrn-org/netscanner/network"
 	"github.com/tdrn-org/netscanner/sensor"
 )
 
@@ -70,6 +71,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 		s.startHttpServer,
 		s.startDatastore,
 		s.startMetrics,
+		s.startInfoCache,
 		s.startSensors,
 	}
 	for _, startFunc := range startFuncs {
@@ -171,12 +173,24 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func (s *Server) startSensors(ctx context.Context, config *Config) error {
-	deviceInfos, err := device.NewInfoCache(dns.NewResolverProvider(nil, nil))
+func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
+	networks := network.NewNames()
+	deviceInfos, err := device.NewInfoCache(networks, dns.NewResolverProvider(nil, nil))
 	if err != nil {
 		return fmt.Errorf("failed to setup device info cache (cause: %w)", err)
 	}
 	s.deviceInfos = deviceInfos
+	return nil
+}
+
+func (s *Server) closeInfoCache() error {
+	if s.deviceInfos == nil {
+		return nil
+	}
+	return s.deviceInfos.Close()
+}
+
+func (s *Server) startSensors(ctx context.Context, config *Config) error {
 	s.defaultHost = strings.TrimSpace(config.Sensors.DefaultHost)
 	if s.defaultHost == "" {
 		host, err := os.Hostname()
@@ -219,15 +233,9 @@ func (s *Server) closeSensors() error {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	closeErrs := make([]error, 0, len(s.sensors)+1)
+	closeErrs := make([]error, 0, len(s.sensors))
 	for _, sensor := range s.sensors {
 		err := sensor.Close()
-		if err != nil {
-			closeErrs = append(closeErrs, err)
-		}
-	}
-	if s.deviceInfos != nil {
-		err := s.deviceInfos.Close()
 		if err != nil {
 			closeErrs = append(closeErrs, err)
 		}
@@ -286,6 +294,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) Close() error {
 	closeFuncs := []func() error{
 		s.closeSensors,
+		s.closeInfoCache,
 		s.closeHttpServer,
 		s.closeDatastore,
 	}

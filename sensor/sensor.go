@@ -52,8 +52,8 @@ type Event struct {
 	Host            string
 	Timestamp       time.Time
 	Type            EventType
+	Address         netip.Addr
 	HardwareAddress net.HardwareAddr
-	IPAddress       *netip.Addr
 	User            string
 	Service         string
 	Sensor          string
@@ -69,10 +69,6 @@ func (e *Event) String() string {
 	if e.HardwareAddress != nil {
 		mac = e.HardwareAddress.String()
 	}
-	ip := "-"
-	if e.IPAddress != nil {
-		ip = e.IPAddress.String()
-	}
 	user := "-"
 	if e.User != "" {
 		user = e.User
@@ -81,7 +77,7 @@ func (e *Event) String() string {
 	if e.Service != "" {
 		service = e.Service
 	}
-	return fmt.Sprintf("host:%s timestamp:%s type:%s MAC:%s IP:%s User:%s Service:%s", host, timestamp, e.Type, mac, ip, user, service)
+	return fmt.Sprintf("host:%s timestamp:%s type:%s IP:%s MAC:%s User:%s Service:%s", host, timestamp, e.Type, e.Address, mac, user, service)
 }
 
 type EventReceiver interface {

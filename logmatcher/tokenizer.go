@@ -26,8 +26,8 @@ type TokenType int
 
 const (
 	TokenTypeUnknown         TokenType = 0
-	TokenTypeHardwareAddress TokenType = 1
-	TokenTypeIPAddress       TokenType = 2
+	TokenTypeAddress         TokenType = 1
+	TokenTypeHardwareAddress TokenType = 2
 	TokenTypeSymbol          TokenType = 3
 )
 
@@ -41,16 +41,16 @@ func (t *Token) resolve() (TokenType, any) {
 	if t.typeHint != TokenTypeUnknown {
 		return t.typeHint, t.value
 	}
+	address, err := netip.ParseAddr(t.Symbol)
+	if err == nil {
+		t.typeHint = TokenTypeAddress
+		t.value = address
+		return t.typeHint, t.value
+	}
 	hardwareAddress, err := net.ParseMAC(t.Symbol)
 	if err == nil {
 		t.typeHint = TokenTypeHardwareAddress
 		t.value = hardwareAddress
-		return t.typeHint, t.value
-	}
-	ipAddress, err := netip.ParseAddr(t.Symbol)
-	if err == nil {
-		t.typeHint = TokenTypeIPAddress
-		t.value = &ipAddress
 		return t.typeHint, t.value
 	}
 	t.typeHint = TokenTypeSymbol
@@ -68,20 +68,20 @@ func (t *Token) Value() any {
 	return value
 }
 
+func (t *Token) AddressValue() netip.Addr {
+	typeHint, value := t.resolve()
+	if typeHint != TokenTypeAddress {
+		return netip.Addr{}
+	}
+	return value.(netip.Addr)
+}
+
 func (t *Token) HardwareAddressValue() net.HardwareAddr {
 	typeHint, value := t.resolve()
 	if typeHint != TokenTypeHardwareAddress {
 		return nil
 	}
 	return value.(net.HardwareAddr)
-}
-
-func (t *Token) IPAddressValue() *netip.Addr {
-	typeHint, value := t.resolve()
-	if typeHint != TokenTypeIPAddress {
-		return nil
-	}
-	return value.(*netip.Addr)
 }
 
 type Tokenizer interface {

@@ -41,12 +41,11 @@ func TestNewSensor(t *testing.T) {
 func newTestEvent(t *testing.T) *sensor.Event {
 	mac, err := net.ParseMAC("00:00:00:00:00:00")
 	require.NoError(t, err)
-	ip := netip.IPv4Unspecified()
 	event := &sensor.Event{
 		Timestamp:       time.Now(),
 		Type:            sensor.EventTypeGranted,
+		Address:         netip.IPv4Unspecified(),
 		HardwareAddress: mac,
-		IPAddress:       &ip,
 		User:            "<user>",
 		Service:         "<service>",
 		Sensor:          "<sensor>",

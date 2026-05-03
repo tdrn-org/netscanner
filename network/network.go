@@ -22,21 +22,21 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"net"
+	"net/netip"
 	"slices"
 	"strings"
 	"sync"
 )
 
 type nameEntry struct {
-	name  string
-	cidrs []*net.IPNet
+	name     string
+	prefixes []netip.Prefix
 }
 
 func (e *nameEntry) Save(w io.Writer) (int, error) {
 	total := 0
-	for _, cidr := range e.cidrs {
-		written, err := w.Write([]byte(fmt.Sprintf("%s:%s\n", e.name, cidr.String())))
+	for _, prefix := range e.prefixes {
+		written, err := w.Write([]byte(fmt.Sprintf("%s:%s\n", e.name, prefix.String())))
 		total += written
 		if err != nil {
 			return total, err
@@ -45,9 +45,9 @@ func (e *nameEntry) Save(w io.Writer) (int, error) {
 	return total, nil
 }
 
-func (e *nameEntry) Contains(ip net.IP) bool {
-	for _, cidr := range e.cidrs {
-		if cidr.Contains(ip) {
+func (e *nameEntry) Contains(address netip.Addr) bool {
+	for _, prefix := range e.prefixes {
+		if prefix.Contains(address) {
 			return true
 		}
 	}
@@ -78,11 +78,11 @@ func (n *Names) Load(r io.Reader) error {
 		}
 		line = strings.TrimSpace(line)
 		if line != "" {
-			name, cidr, err := n.decodeEntryLine(line)
+			name, prefix, err := n.decodeEntryLine(line)
 			if err != nil {
 				return err
 			}
-			n.addLocked(name, cidr)
+			n.addLocked(name, prefix)
 		}
 		if eof {
 			return nil
@@ -90,20 +90,20 @@ func (n *Names) Load(r io.Reader) error {
 	}
 }
 
-func (n *Names) decodeEntryLine(line string) (string, *net.IPNet, error) {
+func (n *Names) decodeEntryLine(line string) (string, netip.Prefix, error) {
 	lineSplit := strings.SplitN(line, ":", 2)
 	if len(lineSplit) != 2 {
-		return "", nil, fmt.Errorf("unrecognized network line: '%s'", line)
+		return "", netip.Prefix{}, fmt.Errorf("unrecognized network line: '%s'", line)
 	}
 	name := strings.TrimSpace(lineSplit[0])
 	if name == "" {
-		return "", nil, fmt.Errorf("missing network name: '%s'", line)
+		return "", netip.Prefix{}, fmt.Errorf("missing network name: '%s'", line)
 	}
-	_, cidr, err := net.ParseCIDR(strings.TrimSpace(lineSplit[1]))
+	prefix, err := netip.ParsePrefix(strings.TrimSpace(lineSplit[1]))
 	if err != nil {
-		return "", nil, fmt.Errorf("unrecognized network CIDR: '%s'", line)
+		return "", netip.Prefix{}, fmt.Errorf("unrecognized network CIDR: '%s'", line)
 	}
-	return name, cidr, nil
+	return name, prefix, nil
 }
 
 func (n *Names) Save(w io.Writer) (int, error) {
@@ -121,23 +121,23 @@ func (n *Names) Save(w io.Writer) (int, error) {
 	return total, nil
 }
 
-func (n *Names) Add(name string, cidrs ...*net.IPNet) {
+func (n *Names) Add(name string, prefixes ...netip.Prefix) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	n.addLocked(name, cidrs...)
+	n.addLocked(name, prefixes...)
 }
 
-func (n *Names) addLocked(name string, cidrs ...*net.IPNet) {
+func (n *Names) addLocked(name string, prefixes ...netip.Prefix) {
 	entry, ok := n.names[name]
 	if !ok {
 		entry = &nameEntry{
-			name:  name,
-			cidrs: cidrs,
+			name:     name,
+			prefixes: prefixes,
 		}
 		n.names[name] = entry
 	} else {
-		entry.cidrs = append(entry.cidrs, cidrs...)
+		entry.prefixes = append(entry.prefixes, prefixes...)
 	}
 }
 
@@ -158,31 +158,31 @@ const Private string = "private"
 const LocalUnicast string = "local-unicast"
 const GlobalUnicast string = "global-unicast"
 
-func (n *Names) Match(ip net.IP) string {
+func (n *Names) Match(address netip.Addr) string {
 	n.mutex.RLock()
 	defer n.mutex.RUnlock()
 
 	for name, entry := range n.names {
-		if entry.Contains(ip) {
+		if entry.Contains(address) {
 			return name
 		}
 	}
-	if ip.IsUnspecified() {
+	if address.IsUnspecified() {
 		return Unspecified
 	}
-	if ip.IsLoopback() {
+	if address.IsLoopback() {
 		return Loopback
 	}
-	if ip.IsInterfaceLocalMulticast() || ip.IsLinkLocalMulticast() {
+	if address.IsInterfaceLocalMulticast() || address.IsLinkLocalMulticast() {
 		return LocalMulticast
 	}
-	if ip.IsMulticast() {
+	if address.IsMulticast() {
 		return Multicast
 	}
-	if ip.IsPrivate() {
+	if address.IsPrivate() {
 		return Private
 	}
-	if ip.IsLinkLocalUnicast() {
+	if address.IsLinkLocalUnicast() {
 		return LocalUnicast
 	}
 	return GlobalUnicast

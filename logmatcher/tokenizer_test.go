@@ -24,6 +24,15 @@ import (
 	"github.com/tdrn-org/netscanner/logmatcher"
 )
 
+func TestAddressToken(t *testing.T) {
+	validAddressToken := logmatcher.Token{Symbol: "::1"}
+	require.Equal(t, logmatcher.TokenTypeAddress, validAddressToken.Type())
+	require.NotNil(t, validAddressToken.AddressValue())
+	invalidAddressToken := logmatcher.Token{Symbol: "x::1"}
+	require.Equal(t, logmatcher.TokenTypeSymbol, invalidAddressToken.Type())
+	require.Equal(t, netip.Addr{}, invalidAddressToken.AddressValue())
+}
+
 func TestHardwareAddressToken(t *testing.T) {
 	validHardwareAddressToken := logmatcher.Token{Symbol: "00:00:5e:00:53:01"}
 	require.Equal(t, logmatcher.TokenTypeHardwareAddress, validHardwareAddressToken.Type())
@@ -33,22 +42,12 @@ func TestHardwareAddressToken(t *testing.T) {
 	require.Nil(t, invalidHardwareAddressToken.HardwareAddressValue())
 }
 
-func TestIPAddresstoken(t *testing.T) {
-	validIPAddressToken := logmatcher.Token{Symbol: "::1"}
-	require.Equal(t, logmatcher.TokenTypeIPAddress, validIPAddressToken.Type())
-	require.NotNil(t, validIPAddressToken.IPAddressValue())
-	invalidIPAddressToken := logmatcher.Token{Symbol: "x::1"}
-	require.Equal(t, logmatcher.TokenTypeSymbol, invalidIPAddressToken.Type())
-	require.Nil(t, invalidIPAddressToken.IPAddressValue())
-}
-
 func TestDefaultTokenizer(t *testing.T) {
 	tokens := logmatcher.FieldsTokenizer("Connection reset by authenticating user root 127.0.0.0 port 63906 [preauth]")
 	require.Len(t, tokens, 10)
 	require.Equal(t, logmatcher.TokenTypeSymbol, tokens[0].Type())
 	require.Equal(t, "Connection", tokens[0].Symbol)
-	require.Equal(t, logmatcher.TokenTypeIPAddress, tokens[6].Type())
+	require.Equal(t, logmatcher.TokenTypeAddress, tokens[6].Type())
 	require.Equal(t, "127.0.0.0", tokens[6].Symbol)
-	ipAddressValue := netip.MustParseAddr("127.0.0.0")
-	require.Equal(t, &ipAddressValue, tokens[6].IPAddressValue())
+	require.Equal(t, netip.MustParseAddr("127.0.0.0"), tokens[6].AddressValue())
 }

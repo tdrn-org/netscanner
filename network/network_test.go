@@ -18,7 +18,7 @@ package network_test
 
 import (
 	"bytes"
-	"net"
+	"net/netip"
 	"os"
 	"testing"
 
@@ -43,39 +43,39 @@ func TestNamesSaveLoad(t *testing.T) {
 func TestNamesMatch(t *testing.T) {
 	names := buildTestNames(t)
 	// Intra
-	require.Equal(t, "Intra", names.Match(net.ParseIP("192.168.1.2")))
-	require.Equal(t, "Intra", names.Match(net.ParseIP("fd01::2")))
+	require.Equal(t, "Intra", names.Match(netip.MustParseAddr("192.168.1.2")))
+	require.Equal(t, "Intra", names.Match(netip.MustParseAddr("fd01::2")))
 	// VPN
-	require.Equal(t, "VPN", names.Match(net.ParseIP("192.168.2.2")))
-	require.Equal(t, "VPN", names.Match(net.ParseIP("fd02::2")))
+	require.Equal(t, "VPN", names.Match(netip.MustParseAddr("192.168.2.2")))
+	require.Equal(t, "VPN", names.Match(netip.MustParseAddr("fd02::2")))
 	// GlobalUnicast
-	require.Equal(t, network.GlobalUnicast, names.Match(net.ParseIP("1.1.1.1")))
-	require.Equal(t, network.GlobalUnicast, names.Match(net.ParseIP("2000::1")))
+	require.Equal(t, network.GlobalUnicast, names.Match(netip.MustParseAddr("1.1.1.1")))
+	require.Equal(t, network.GlobalUnicast, names.Match(netip.MustParseAddr("2000::1")))
 }
 
 func TestNamesDefaults(t *testing.T) {
 	names := network.NewNames()
 	// Unspecified
-	require.Equal(t, network.Unspecified, names.Match(net.IPv4(0, 0, 0, 0)))
-	require.Equal(t, network.Unspecified, names.Match(net.IPv6unspecified))
+	require.Equal(t, network.Unspecified, names.Match(netip.MustParseAddr("0.0.0.0")))
+	require.Equal(t, network.Unspecified, names.Match(netip.IPv6Unspecified()))
 	// Loopback
-	require.Equal(t, network.Loopback, names.Match(net.ParseIP("127.0.0.1")))
-	require.Equal(t, network.Loopback, names.Match(net.IPv6loopback))
+	require.Equal(t, network.Loopback, names.Match(netip.MustParseAddr("127.0.0.1")))
+	require.Equal(t, network.Loopback, names.Match(netip.IPv6Loopback()))
 	// LocalMulticast
-	require.Equal(t, network.LocalMulticast, names.Match(net.ParseIP("224.0.0.1")))
-	require.Equal(t, network.LocalMulticast, names.Match(net.IPv6linklocalallnodes))
+	require.Equal(t, network.LocalMulticast, names.Match(netip.MustParseAddr("224.0.0.1")))
+	require.Equal(t, network.LocalMulticast, names.Match(netip.IPv6LinkLocalAllNodes()))
 	// Multicast
-	require.Equal(t, network.Multicast, names.Match(net.ParseIP("224.0.1.1")))
-	require.Equal(t, network.Multicast, names.Match(net.ParseIP("ff00::1")))
+	require.Equal(t, network.Multicast, names.Match(netip.MustParseAddr("224.0.1.1")))
+	require.Equal(t, network.Multicast, names.Match(netip.MustParseAddr("ff00::1")))
 	// Private
-	require.Equal(t, network.Private, names.Match(net.ParseIP("192.168.1.1")))
-	require.Equal(t, network.Private, names.Match(net.ParseIP("fd00::1")))
+	require.Equal(t, network.Private, names.Match(netip.MustParseAddr("192.168.1.1")))
+	require.Equal(t, network.Private, names.Match(netip.MustParseAddr("fd00::1")))
 	// LocalUnicast
-	require.Equal(t, network.LocalUnicast, names.Match(net.ParseIP("169.254.1.1")))
-	require.Equal(t, network.LocalUnicast, names.Match(net.ParseIP("fe80::1")))
+	require.Equal(t, network.LocalUnicast, names.Match(netip.MustParseAddr("169.254.1.1")))
+	require.Equal(t, network.LocalUnicast, names.Match(netip.MustParseAddr("fe80::1")))
 	// GlobalUnicast
-	require.Equal(t, network.GlobalUnicast, names.Match(net.ParseIP("1.1.1.1")))
-	require.Equal(t, network.GlobalUnicast, names.Match(net.ParseIP("2000::1")))
+	require.Equal(t, network.GlobalUnicast, names.Match(netip.MustParseAddr("1.1.1.1")))
+	require.Equal(t, network.GlobalUnicast, names.Match(netip.MustParseAddr("2000::1")))
 }
 
 func buildTestNames(t *testing.T) *network.Names {

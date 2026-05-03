@@ -26,8 +26,8 @@ import (
 func TestMatchParse(t *testing.T) {
 	match := logmatcher.Match([]logmatcher.Value{
 		logmatcher.AnyValue,
+		logmatcher.AddressValue,
 		logmatcher.HardwareAddressValue,
-		logmatcher.IPAddressValue,
 		logmatcher.UserValue,
 		logmatcher.ServiceValue,
 		"no_quote",
@@ -35,7 +35,7 @@ func TestMatchParse(t *testing.T) {
 		"{{double_quote}}",
 	})
 	matchString := match.String()
-	require.Equal(t, "{Any} {MAC} {IP} {User} {Service} no_quote {{single_quote}} {{{{double_quote}}}}", matchString)
+	require.Equal(t, "{Any} {IP} {MAC} {User} {Service} no_quote {{single_quote}} {{{{double_quote}}}}", matchString)
 	parsed := logmatcher.ParseMatch(match.String())
 	require.Equal(t, match, parsed)
 }

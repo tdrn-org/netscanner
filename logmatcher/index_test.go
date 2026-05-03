@@ -51,8 +51,8 @@ func TestIndexResolveValues(t *testing.T) {
 	resolved2 := index.ResolveValues("Connection reset by authenticating user admin 127.0.0.1 port 63906 [preauth]")
 	require.NotNil(t, resolved2)
 	require.Equal(t, sensor.EventTypeDenied, resolved2.EventType)
+	require.Equal(t, "127.0.0.1", resolved2.Address.String())
 	require.Nil(t, resolved2.HardwareAddress)
-	require.Equal(t, "127.0.0.1", resolved2.IPAddress.String())
 	require.Equal(t, "admin", resolved2.User)
 	require.Equal(t, "sshd", resolved2.Service)
 
@@ -60,8 +60,8 @@ func TestIndexResolveValues(t *testing.T) {
 	resolved3 := index.ResolveValues("Accepted publickey for root from ::1 port 41074 ssh2: RSA SHA256:xyz")
 	require.NotNil(t, resolved3)
 	require.Equal(t, sensor.EventTypeGranted, resolved3.EventType)
+	require.Equal(t, "::1", resolved3.Address.String())
 	require.Nil(t, resolved3.HardwareAddress)
-	require.Equal(t, "::1", resolved3.IPAddress.String())
 	require.Equal(t, "root", resolved3.User)
 	require.Equal(t, "sshd", resolved3.Service)
 

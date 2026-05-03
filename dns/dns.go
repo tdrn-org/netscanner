@@ -29,34 +29,34 @@ type Info struct {
 }
 
 type Provider interface {
-	Lookup(ctx context.Context, addr *netip.Addr) (*Info, error)
+	Lookup(ctx context.Context, address netip.Addr) (*Info, error)
 }
 
 type resolverProvider struct {
 	resolver *net.Resolver
-	mapper   func(*netip.Addr) *netip.Addr
+	mapper   func(netip.Addr) netip.Addr
 }
 
-func NewResolverProvider(resolver *net.Resolver, mapper func(*netip.Addr) *netip.Addr) Provider {
+func NewResolverProvider(resolver *net.Resolver, mapper func(netip.Addr) netip.Addr) Provider {
 	return &resolverProvider{
 		resolver: resolver,
 		mapper:   mapper,
 	}
 }
 
-func (p *resolverProvider) Lookup(ctx context.Context, addr *netip.Addr) (*Info, error) {
-	mappedAddr := addr
+func (p *resolverProvider) Lookup(ctx context.Context, address netip.Addr) (*Info, error) {
+	mappedAddress := address
 	if p.mapper != nil {
-		mappedAddr = p.mapper(addr)
+		mappedAddress = p.mapper(address)
 	}
-	addrString := mappedAddr.String()
-	names, err := p.resolver.LookupAddr(ctx, addrString)
+	addressString := mappedAddress.String()
+	names, err := p.resolver.LookupAddr(ctx, addressString)
 	if err != nil {
-		slog.Info("DNS lookup error", slog.String("addr", addrString), slog.Any("err", err))
+		slog.Info("DNS lookup failure", slog.String("address", addressString), slog.Any("err", err))
 	}
 	if len(names) == 0 {
 		info := &Info{
-			Name: addrString,
+			Name: addressString,
 		}
 		return info, nil
 	}

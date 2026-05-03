@@ -100,6 +100,6 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 }
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
-	deviceInfo := s.deviceInfos.Lookup(ctx, event.IPAddress)
+	deviceInfo := s.deviceInfos.Lookup(ctx, event.Address)
 	s.logger.Info(deviceInfo.String())
 }

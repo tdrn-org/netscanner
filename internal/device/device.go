@@ -26,10 +26,12 @@ import (
 	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/internal/cache"
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
+	"github.com/tdrn-org/netscanner/network"
 )
 
 type Info struct {
-	Address *netip.Addr
+	Address netip.Addr
+	Network string
 	DNS     dns.Info
 }
 
@@ -38,12 +40,13 @@ func (i *Info) String() string {
 	if i.DNS.Name != "" {
 		dnsName = i.DNS.Name
 	}
-	return fmt.Sprintf("address:%s DNS:Name:%s", i.Address, dnsName)
+	return fmt.Sprintf("address:%s Network:%s DNS:Name:%s", i.Address, i.Network, dnsName)
 }
 
 type InfoCache struct {
-	dns   dns.Provider
-	cache cache.KeyValue[*netip.Addr, *Info]
+	dns      dns.Provider
+	networks *network.Names
+	cache    cache.KeyValue[netip.Addr, *Info]
 }
 
 func NewInfoCache(dns dns.Provider) (*InfoCache, error) {
@@ -59,24 +62,25 @@ func NewInfoCache(dns dns.Provider) (*InfoCache, error) {
 	return c, nil
 }
 
-func (c *InfoCache) loadInfo(ctx context.Context, addr *netip.Addr) (*Info, error) {
-	logger := slog.With(slog.String("addr", addr.String()))
+func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, error) {
+	logger := slog.With(slog.String("addr", address.String()))
 	info := &Info{
-		Address: addr,
+		Address: address,
 	}
-	dnsInfo, err := c.dns.Lookup(ctx, addr)
+	dnsInfo, err := c.dns.Lookup(ctx, address)
 	if err == nil {
 		info.DNS = *dnsInfo
 	} else {
-		logger.Warn("failed query DNS info", slog.Any("err", err))
+		logger.Warn("failed to query DNS info", slog.Any("err", err))
 	}
+	info.Network = c.networks.Match(address)
 	return info, nil
 }
 
-func (c *InfoCache) Lookup(ctx context.Context, addr *netip.Addr) *Info {
-	deviceInfo, match := c.cache.Get(ctx, addr)
+func (c *InfoCache) Lookup(ctx context.Context, address netip.Addr) *Info {
+	deviceInfo, match := c.cache.Get(ctx, address)
 	if !match {
-		return &Info{Address: addr}
+		return &Info{Address: address}
 	}
 	return deviceInfo
 }

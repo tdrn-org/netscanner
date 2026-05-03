@@ -28,8 +28,8 @@ type Value string
 
 const (
 	AnyValue             Value = ""
-	HardwareAddressValue Value = "\x01"
-	IPAddressValue       Value = "\x02"
+	AddressValue         Value = "\x01"
+	HardwareAddressValue Value = "\x02"
 	UserValue            Value = "\x03"
 	ServiceValue         Value = "\x04"
 )
@@ -38,10 +38,10 @@ func ParseValue(s string) Value {
 	switch s {
 	case "{Any}":
 		return AnyValue
+	case "{IP}":
+		return AddressValue
 	case "{MAC}":
 		return HardwareAddressValue
-	case "{IP}":
-		return IPAddressValue
 	case "{User}":
 		return UserValue
 	case "{Service}":
@@ -55,10 +55,10 @@ func (value Value) String() string {
 	switch value {
 	case AnyValue:
 		return "{Any}"
+	case AddressValue:
+		return "{IP}"
 	case HardwareAddressValue:
 		return "{MAC}"
-	case IPAddressValue:
-		return "{IP}"
 	case UserValue:
 		return "{User}"
 	case ServiceValue:
@@ -92,8 +92,8 @@ func (match Match) String() string {
 
 type ResolvedValues struct {
 	EventType       sensor.EventType
+	Address         netip.Addr
 	HardwareAddress net.HardwareAddr
-	IPAddress       *netip.Addr
 	User            string
 	Service         string
 }

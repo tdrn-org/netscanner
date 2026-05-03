@@ -26,23 +26,20 @@ import (
 )
 
 func TestResolverProvider(t *testing.T) {
-	provider := dns.NewResolverProvider(net.DefaultResolver, func(addr *netip.Addr) *netip.Addr { return addr })
+	provider := dns.NewResolverProvider(net.DefaultResolver, func(addr netip.Addr) netip.Addr { return addr })
 
 	// 8.8.8.8
-	addr := netip.MustParseAddr("8.8.8.8")
-	info, err := provider.Lookup(t.Context(), &addr)
+	info, err := provider.Lookup(t.Context(), netip.MustParseAddr("8.8.8.8"))
 	require.NoError(t, err)
 	require.NotEmpty(t, info.Name)
 
 	// 0.0.0.0
-	addr = netip.MustParseAddr("0.0.0.0")
-	info, err = provider.Lookup(t.Context(), &addr)
+	info, err = provider.Lookup(t.Context(), netip.MustParseAddr("0.0.0.0"))
 	require.NoError(t, err)
 	require.NotEmpty(t, info.Name)
 
 	// 2001:4860:4860::8888
-	addr = netip.MustParseAddr("2001:4860:4860::8888")
-	info, err = provider.Lookup(t.Context(), &addr)
+	info, err = provider.Lookup(t.Context(), netip.MustParseAddr("2001:4860:4860::8888"))
 	require.NoError(t, err)
 	require.NotEmpty(t, info.Name)
 }

@@ -201,10 +201,10 @@ func (r *indexResolver) resolve() *ResolvedValues {
 	}
 	for index, value := range r.match {
 		switch value {
+		case AddressValue:
+			resolved.Address = r.matchingTokens[index].AddressValue()
 		case HardwareAddressValue:
 			resolved.HardwareAddress = r.matchingTokens[index].HardwareAddressValue()
-		case IPAddressValue:
-			resolved.IPAddress = r.matchingTokens[index].IPAddressValue()
 		case UserValue:
 			resolved.User = r.matchingTokens[index].Symbol
 		case ServiceValue:
@@ -229,12 +229,12 @@ func (r *indexResolver) ResolveValues(node *indexNode, tokens []Token, tokenInde
 		return r.ResolveValues(valueNode, tokens, tokenIndex+1)
 	}
 	switch token.Type() {
-	case TokenTypeHardwareAddress:
-		if valueNode := node.valueNodes[HardwareAddressValue]; valueNode != nil {
+	case TokenTypeAddress:
+		if valueNode := node.valueNodes[AddressValue]; valueNode != nil {
 			return r.ResolveValues(valueNode, tokens, tokenIndex+1)
 		}
-	case TokenTypeIPAddress:
-		if valueNode := node.valueNodes[IPAddressValue]; valueNode != nil {
+	case TokenTypeHardwareAddress:
+		if valueNode := node.valueNodes[HardwareAddressValue]; valueNode != nil {
 			return r.ResolveValues(valueNode, tokens, tokenIndex+1)
 		}
 	}

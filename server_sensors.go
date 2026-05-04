@@ -74,7 +74,7 @@ func (s *Server) resolveLogMatcherLocked(ctx context.Context, name string) (*log
 	if index != nil {
 		return index, nil
 	}
-	indexModel, err := s.store.SelectOrCreateLogMatcherIndex(ctx, name)
+	indexModel, err := s.store.SelectOrInsertLogMatcherIndex(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -101,5 +101,8 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
 	deviceInfo := s.deviceInfos.Lookup(ctx, event.Address)
-	s.logger.Info(deviceInfo.String())
+	err := s.store.UpdateOrInsertEvent(ctx, event, deviceInfo)
+	if err != nil {
+		s.logger.Error("failed to record event", slog.Any("err", err))
+	}
 }

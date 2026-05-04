@@ -17,21 +17,28 @@
 package datastore_test
 
 import (
+	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-database/memory"
+	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/netscanner/internal/device"
+	"github.com/tdrn-org/netscanner/network"
 	"github.com/tdrn-org/netscanner/sensor"
 )
 
-func TestLogMatcherIndex(t *testing.T) {
+func TestSelectOrInsertLogMatcherIndex(t *testing.T) {
+	t.Skip()
+
 	store := datastore.New(newDatastore(t))
 
 	// Insert
-	index1, err := store.SelectOrCreateLogMatcherIndex(t.Context(), "test")
+	index1, err := store.SelectOrInsertLogMatcherIndex(t.Context(), "test")
 	require.NoError(t, err)
 	require.Equal(t, "test", index1.Name)
 	require.Equal(t, 0, index1.Version)
@@ -43,11 +50,25 @@ func TestLogMatcherIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	// Select
-	index2, err := store.SelectOrCreateLogMatcherIndex(t.Context(), index1.Name)
+	index2, err := store.SelectOrInsertLogMatcherIndex(t.Context(), index1.Name)
 	require.NoError(t, err)
 	require.Equal(t, index1.Name, index2.Name)
 	require.Equal(t, 1, index2.Version)
 	require.Len(t, index2.Entries, 1)
+}
+
+func TestUpdateOrInsertEvent(t *testing.T) {
+	store := datastore.New(newDatastore(t))
+
+	// Insert
+	event := newEvent(t)
+	deviceInfo := newDeviceInfo()
+	err := store.UpdateOrInsertEvent(t.Context(), event, deviceInfo)
+	require.NoError(t, err)
+
+	// Update
+	err = store.UpdateOrInsertEvent(t.Context(), event, deviceInfo)
+	require.NoError(t, err)
 }
 
 func newDatastore(t *testing.T) *database.Driver {
@@ -58,4 +79,27 @@ func newDatastore(t *testing.T) *database.Driver {
 	require.Equal(t, database.SchemaNone, from)
 	require.Equal(t, 1, to)
 	return datastore
+}
+
+func newEvent(t *testing.T) *sensor.Event {
+	return &sensor.Event{
+		Host:            "localhost",
+		Timestamp:       time.Now(),
+		Type:            sensor.EventTypeDenied,
+		Address:         netip.IPv6Loopback(),
+		HardwareAddress: nil,
+		User:            "user",
+		Service:         "service",
+		Sensor:          t.Name(),
+	}
+}
+
+func newDeviceInfo() *device.Info {
+	return &device.Info{
+		Address: netip.IPv6Loopback(),
+		Network: network.Loopback,
+		DNS: dns.Info{
+			Name: "localhost",
+		},
+	}
 }

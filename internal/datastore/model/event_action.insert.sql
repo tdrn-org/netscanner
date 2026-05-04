@@ -1,0 +1,21 @@
+INSERT INTO
+    event_action(
+        id,
+        target_id,
+        device_id,
+        user,
+        status,
+        count,
+        first,
+        last
+    )
+VALUES(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+)

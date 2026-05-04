@@ -28,6 +28,10 @@ type Info struct {
 	Name string
 }
 
+func (i *Info) Equal(i2 *Info) bool {
+	return i.Name == i2.Name
+}
+
 type Provider interface {
 	Lookup(ctx context.Context, address netip.Addr) (*Info, error)
 }

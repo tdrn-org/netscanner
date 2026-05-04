@@ -1,0 +1,27 @@
+INSERT INTO
+    event_device(
+        id,
+        address,
+        generation,
+        network,
+        dns,
+        hardware_address,
+        lat,
+        lng,
+        city,
+        country,
+        country_code
+    )
+VALUES(
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11
+)

@@ -35,12 +35,16 @@ type Info struct {
 	DNS     dns.Info
 }
 
+func (i *Info) Equal(i2 *Info) bool {
+	return i.Address == i2.Address && i.Network == i2.Network && i.DNS.Equal(&i2.DNS)
+}
+
 func (i *Info) String() string {
 	dnsName := "-"
 	if i.DNS.Name != "" {
 		dnsName = i.DNS.Name
 	}
-	return fmt.Sprintf("address:%s Network:%s DNS:Name:%s", i.Address, i.Network, dnsName)
+	return fmt.Sprintf("Address:%s Network:%s DNS:%s", i.Address, i.Network, dnsName)
 }
 
 type InfoCache struct {

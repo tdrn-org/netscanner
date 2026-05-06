@@ -48,4 +48,4 @@ default_host = ""
 [geoip]
 
 [geoip.maxminddb]
-files = "./GeoLite2-City.mmdb"
+file = "./GeoLite2-City.mmdb"

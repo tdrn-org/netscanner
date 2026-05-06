@@ -100,7 +100,9 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 	}
 	geoipInfo, err := c.geoip.Lookup(ctx, address)
 	if err == nil {
-		info.Geoip = *geoipInfo
+		if geoipInfo != nil {
+			info.Geoip = *geoipInfo
+		}
 	} else {
 		logger.Warn("failed to query GeoIP info", slog.Any("err", err))
 	}

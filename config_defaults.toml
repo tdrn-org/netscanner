@@ -44,3 +44,8 @@ sensors = true
 [sensors]
 include = "./sensors.d"
 default_host = ""
+
+[geoip]
+
+[geoip.maxminddb]
+files = "./GeoLite2-City.mmdb"

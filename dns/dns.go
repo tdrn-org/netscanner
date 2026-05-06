@@ -24,50 +24,36 @@ import (
 	"slices"
 )
 
-type Info struct {
-	Name string
-}
-
-func (i *Info) Equal(i2 *Info) bool {
-	return i.Name == i2.Name
-}
-
 type Provider interface {
-	Lookup(ctx context.Context, address netip.Addr) (*Info, error)
+	Lookup(ctx context.Context, address netip.Addr) (string, error)
 }
 
 type resolverProvider struct {
 	resolver *net.Resolver
-	mapper   func(netip.Addr) netip.Addr
+	logger   *slog.Logger
 }
 
-func NewResolverProvider(resolver *net.Resolver, mapper func(netip.Addr) netip.Addr) Provider {
+func NewResolverProvider(resolver *net.Resolver) Provider {
 	return &resolverProvider{
 		resolver: resolver,
-		mapper:   mapper,
+		logger:   slog.With(slog.String("dns", "resolver")),
 	}
 }
 
-func (p *resolverProvider) Lookup(ctx context.Context, address netip.Addr) (*Info, error) {
-	mappedAddress := address
-	if p.mapper != nil {
-		mappedAddress = p.mapper(address)
-	}
-	addressString := mappedAddress.String()
+func (p *resolverProvider) Lookup(ctx context.Context, address netip.Addr) (string, error) {
+	addressString := address.String()
+	addressLogger := p.logger.With(slog.String("address", addressString))
+	addressLogger.Debug("Looking up host name...")
 	names, err := p.resolver.LookupAddr(ctx, addressString)
 	if err != nil {
-		slog.Info("DNS lookup failure", slog.String("address", addressString), slog.Any("err", err))
+		addressLogger.Info("DNS lookup failure", slog.Any("err", err))
 	}
 	if len(names) == 0 {
-		info := &Info{
-			Name: addressString,
-		}
-		return info, nil
+		return "", nil
 	}
 	// Sort names to ensure stable result in case there are multiple names
 	slices.Sort(names)
-	info := &Info{
-		Name: names[0],
-	}
-	return info, nil
+	name := names[0]
+	addressLogger.Debug("Looked up host name", slog.String("name", name))
+	return name, nil
 }

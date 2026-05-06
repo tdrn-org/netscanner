@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -33,7 +34,9 @@ import (
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-tlsconf/tlsclient"
+	"github.com/tdrn-org/netscanner/arp"
 	"github.com/tdrn-org/netscanner/dns"
+	"github.com/tdrn-org/netscanner/geoip"
 	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/device"
 	"github.com/tdrn-org/netscanner/internal/metrics"
@@ -49,6 +52,7 @@ type Server struct {
 	baseURL         *url.URL
 	store           *datastore.Store
 	metricsRecorder metrics.Recorder
+	arpCache        *arp.CacheProvider
 	deviceInfos     *device.InfoCache
 	defaultHost     string
 	sensors         map[string]*sensor.Sensor
@@ -71,6 +75,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 		s.startHttpServer,
 		s.startDatastore,
 		s.startMetrics,
+		s.startARPCache,
 		s.startInfoCache,
 		s.startSensors,
 	}
@@ -173,11 +178,31 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 	return nil
 }
 
+func (s *Server) startARPCache(ctx context.Context, config *Config) error {
+	arpCache, err := arp.NewCacheProvider(time.Hour)
+	if err != nil {
+		return err
+	}
+	s.arpCache = arpCache
+	return nil
+}
+
+func (s *Server) closeARPCache() error {
+	if s.arpCache == nil {
+		return nil
+	}
+	return s.arpCache.Close()
+}
+
 func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
 	networks := network.NewNames()
-	deviceInfos, err := device.NewInfoCache(networks, dns.NewResolverProvider(nil, nil))
+	geoip, err := geoip.Open(config.GeoIP.MaxMindDB.config())
 	if err != nil {
-		return fmt.Errorf("failed to setup device info cache (cause: %w)", err)
+		return err
+	}
+	deviceInfos, err := device.NewInfoCache(networks, s.arpCache, dns.NewResolverProvider(nil), geoip)
+	if err != nil {
+		return err
 	}
 	s.deviceInfos = deviceInfos
 	return nil
@@ -295,6 +320,7 @@ func (s *Server) Close() error {
 	closeFuncs := []func() error{
 		s.closeSensors,
 		s.closeInfoCache,
+		s.closeARPCache,
 		s.closeHttpServer,
 		s.closeDatastore,
 	}

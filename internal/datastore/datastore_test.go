@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-database/memory"
-	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
 	"github.com/tdrn-org/netscanner/internal/device"
@@ -98,8 +97,6 @@ func newDeviceInfo() *device.Info {
 	return &device.Info{
 		Address: netip.IPv6Loopback(),
 		Network: network.Loopback,
-		DNS: dns.Info{
-			Name: "localhost",
-		},
+		DNS:     "localhost",
 	}
 }

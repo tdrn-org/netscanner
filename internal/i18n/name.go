@@ -25,6 +25,15 @@ import (
 
 type Name map[language.Tag]string
 
+func (name Name) Equal(name2 Name) bool {
+	// Do fast check for empty names
+	if len(name) == 0 {
+		return len(name2) == 0
+	}
+	defaultLocale := DefaultLocale()
+	return name[defaultLocale] == name2[defaultLocale]
+}
+
 func (name Name) String() string {
 	return name.Get(DefaultLocale())
 }

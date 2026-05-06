@@ -45,3 +45,23 @@ func TestName(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, name, unmarshaledName)
 }
+
+func TestNameEqual(t *testing.T) {
+	name1 := make(i18n.Name)
+	name2 := make(i18n.Name)
+
+	// Empty equal
+	require.True(t, name1.Equal(name2))
+
+	// not equal
+	name1.Set(language.English, "name")
+	require.False(t, name1.Equal(name2))
+
+	// not equal
+	name2.Set(language.German, "name")
+	require.False(t, name1.Equal(name2))
+
+	// Non-empty equal
+	name2.Set(language.English, "name")
+	require.True(t, name1.Equal(name2))
+}

@@ -39,6 +39,7 @@ import (
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-httpserver/certificate"
 	"github.com/tdrn-org/go-log"
+	"github.com/tdrn-org/netscanner/geoip/maxminddb"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
 	"github.com/tdrn-org/netscanner/sensor/logfile"
 	"github.com/tdrn-org/netscanner/sensor/syslog"
@@ -50,6 +51,7 @@ type Config struct {
 	Datastore DatastoreConfig `toml:"datastore"`
 	Metrics   MetricsConfig   `toml:"metrics"`
 	Sensors   SensorsConfig   `toml:"sensors"`
+	GeoIP     GeoIPConfig     `toml:"geoip"`
 }
 
 type LoggingConfig struct {
@@ -283,6 +285,20 @@ type LogFileSensorConfig struct {
 
 func (c *LogFileSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
+}
+
+type GeoIPConfig struct {
+	MaxMindDB MaxmindDBGeoIPConfig `toml:"maxminddb"`
+}
+
+type MaxmindDBGeoIPConfig struct {
+	File string `toml:"file"`
+}
+
+func (c MaxmindDBGeoIPConfig) config() *maxminddb.Config {
+	return &maxminddb.Config{
+		File: c.File,
+	}
 }
 
 //go:embed config_defaults.toml

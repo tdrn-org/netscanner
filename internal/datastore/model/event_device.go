@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"math"
 	"net/netip"
 
 	"github.com/tdrn-org/go-database"
@@ -43,24 +44,31 @@ type EventDevice struct {
 }
 
 func NewEventDevice(driver *database.Driver, deviceInfo *device.Info, generation int) *EventDevice {
+
 	return &EventDevice{
 		driver:          driver,
 		ID:              database.NewID(),
 		Address:         deviceInfo.Address.StringExpanded(),
 		Generation:      generation,
 		Network:         deviceInfo.Network,
-		DNS:             deviceInfo.DNS.Name,
-		HardwareAddress: "",
-		Lat:             sql.NullFloat64{},
-		Lng:             sql.NullFloat64{},
-		City:            i18n.Name{},
-		Country:         i18n.Name{},
-		CountryCode:     "",
+		DNS:             deviceInfo.DNS,
+		HardwareAddress: deviceInfo.HardwareAddress.String(),
+		Lat: sql.NullFloat64{
+			Float64: deviceInfo.Geoip.Lat,
+			Valid:   !math.IsNaN(deviceInfo.Geoip.Lat),
+		},
+		Lng: sql.NullFloat64{
+			Float64: deviceInfo.Geoip.Lng,
+			Valid:   !math.IsNaN(deviceInfo.Geoip.Lng),
+		},
+		City:        deviceInfo.Geoip.City,
+		Country:     deviceInfo.Geoip.Country,
+		CountryCode: "",
 	}
 }
 
 func (d *EventDevice) EqualDeviceInfo(deviceInfo *device.Info) bool {
-	return d.Address == deviceInfo.Address.StringExpanded() && d.Network == deviceInfo.Network && d.DNS == deviceInfo.DNS.Name
+	return d.Address == deviceInfo.Address.StringExpanded() && d.Network == deviceInfo.Network && d.DNS == deviceInfo.DNS
 }
 
 //go:embed event_device.select_by_address.sql

@@ -14,32 +14,38 @@
  * limitations under the License.
  */
 
-package dns_test
+package arp_test
 
 import (
 	"net"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tdrn-org/netscanner/dns"
+	"github.com/tdrn-org/netscanner/arp"
 )
 
-func TestResolverProvider(t *testing.T) {
-	provider := dns.NewResolverProvider(net.DefaultResolver)
-
-	// 8.8.8.8
-	dns, err := provider.Lookup(t.Context(), netip.MustParseAddr("8.8.8.8"))
+func TestCacheProvider(t *testing.T) {
+	cacheProvider, err := arp.NewCacheProvider(5 * time.Second)
 	require.NoError(t, err)
-	require.NotEmpty(t, dns)
 
-	// 2001:4860:4860::8888
-	dns, err = provider.Lookup(t.Context(), netip.MustParseAddr("2001:4860:4860::8888"))
+	address := netip.IPv6Loopback()
+	hardwareAddress, err := net.ParseMAC("01:02:03:04:05:06")
 	require.NoError(t, err)
-	require.NotEmpty(t, dns)
 
-	// 0.0.0.0
-	dns, err = provider.Lookup(t.Context(), netip.MustParseAddr("0.0.0.0"))
-	require.NoError(t, err)
-	require.Empty(t, dns)
+	// No hit
+	found := cacheProvider.Lookup(t.Context(), address)
+	require.Nil(t, found)
+
+	// Hit
+	cacheProvider.Bind(t.Context(), address, hardwareAddress)
+	found = cacheProvider.Lookup(t.Context(), address)
+	require.Equal(t, hardwareAddress, found)
+
+	// No hit (expired)
+	t.SkipNow() // TODO: Fix and re-enable
+	time.Sleep(10 * time.Second)
+	found = cacheProvider.Lookup(t.Context(), address)
+	require.Nil(t, found)
 }

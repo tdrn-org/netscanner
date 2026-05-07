@@ -17,17 +17,31 @@
 package dns_test
 
 import (
-	"net"
 	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tdrn-org/netscanner/dns"
+	"github.com/tdrn-org/netscanner/dns/custom"
+	"github.com/tdrn-org/netscanner/dns/system"
 )
 
-func TestResolverProvider(t *testing.T) {
-	provider := dns.NewResolverProvider(net.DefaultResolver)
+func TestSystemProvider(t *testing.T) {
+	provider, err := dns.Open(&system.Config{})
+	require.NoError(t, err)
+	runProviderTests(t, provider)
+}
 
+func TestCustomProvider(t *testing.T) {
+	provider, err := dns.Open(&custom.Config{
+		Network: "udp",
+		Address: "8.8.8.8:53",
+	})
+	require.NoError(t, err)
+	runProviderTests(t, provider)
+}
+
+func runProviderTests(t *testing.T, provider dns.Provider) {
 	// 8.8.8.8
 	dns, err := provider.Lookup(t.Context(), netip.MustParseAddr("8.8.8.8"))
 	require.NoError(t, err)
@@ -42,4 +56,5 @@ func TestResolverProvider(t *testing.T) {
 	dns, err = provider.Lookup(t.Context(), netip.MustParseAddr("0.0.0.0"))
 	require.NoError(t, err)
 	require.Empty(t, dns)
+
 }

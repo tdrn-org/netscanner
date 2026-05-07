@@ -19,6 +19,7 @@ package geoip
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/netip"
 
 	"github.com/tdrn-org/netscanner/internal/i18n"
@@ -37,6 +38,13 @@ type Info struct {
 	City        map[language.Tag]string
 	Country     map[language.Tag]string
 	CountryCode string
+}
+
+var NoInfo *Info = &Info{
+	Lat:     math.NaN(),
+	Lng:     math.NaN(),
+	City:    map[language.Tag]string{},
+	Country: map[language.Tag]string{},
 }
 
 func (i *Info) Equal(i2 *Info) bool {

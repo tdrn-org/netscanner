@@ -196,11 +196,15 @@ func (s *Server) closeARPCache() error {
 
 func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
 	networks := network.NewNames()
-	geoip, err := geoip.Open(config.GeoIP.MaxMindDB.config())
+	dns, err := dns.Open(config.DNS.config())
 	if err != nil {
 		return err
 	}
-	deviceInfos, err := device.NewInfoCache(networks, s.arpCache, dns.NewResolverProvider(nil), geoip)
+	geoip, err := geoip.Open(config.GeoIP.config())
+	if err != nil {
+		return err
+	}
+	deviceInfos, err := device.NewInfoCache(networks, s.arpCache, dns, geoip)
 	if err != nil {
 		return err
 	}

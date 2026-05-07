@@ -37,10 +37,16 @@ const testCity string = "Test city"
 const testCountry string = "Test country"
 const testCountryCode string = "tc"
 
-func TestMaxMindDB(t *testing.T) {
-	dbFile, addrs := createTestMaxMindDB(t)
+func TestNoneProvider(t *testing.T) {
+	provider, err := geoip.Open(&geoip.None{})
+	require.NoError(t, err)
 
-	// Open database
+	// Run tests
+	runProviderTests(t, geoip.NoneProviderName, provider, nil)
+}
+
+func TestMaxMindDBProvider(t *testing.T) {
+	dbFile, addrs := createTestMaxMindDB(t)
 	config := &maxminddb.Config{
 		File: dbFile,
 	}
@@ -61,21 +67,23 @@ func runProviderTests(t *testing.T, name geoip.ProviderName, provider geoip.Prov
 	providerName := provider.Name()
 	require.Equal(t, name, providerName)
 
-	// Lookup known address
-	addr := addrs[0]
-	location, err := provider.Lookup(t.Context(), addr)
-	require.NoError(t, err)
-	require.NotNil(t, location)
-	require.Equal(t, testLat, location.Lat)
-	require.Equal(t, testLng, location.Lng)
-	require.Equal(t, testCity, location.City[language.English])
-	require.Equal(t, testCountry, location.Country[language.English])
-	require.Equal(t, testCountryCode, location.CountryCode)
+	if len(addrs) > 0 {
+		// Lookup known address
+		addr := addrs[0]
+		location, err := provider.Lookup(t.Context(), addr)
+		require.NoError(t, err)
+		require.NotNil(t, location)
+		require.Equal(t, testLat, location.Lat)
+		require.Equal(t, testLng, location.Lng)
+		require.Equal(t, testCity, location.City[language.English])
+		require.Equal(t, testCountry, location.Country[language.English])
+		require.Equal(t, testCountryCode, location.CountryCode)
+	}
 
 	// Lookup unknown address
-	location, err = provider.Lookup(t.Context(), netip.MustParseAddr("1.2.3.4"))
+	location, err := provider.Lookup(t.Context(), netip.MustParseAddr("1.2.3.4"))
 	require.NoError(t, err)
-	require.Nil(t, location)
+	require.Equal(t, geoip.NoInfo, location)
 }
 
 func createTestMaxMindDB(t *testing.T) (string, []netip.Addr) {

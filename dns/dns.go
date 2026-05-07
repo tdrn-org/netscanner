@@ -18,42 +18,34 @@ package dns
 
 import (
 	"context"
-	"log/slog"
-	"net"
+	"fmt"
 	"net/netip"
-	"slices"
 )
 
+type ProviderName string
+
+type ProviderConfig interface {
+	ProviderName() ProviderName
+}
+
 type Provider interface {
+	Name() ProviderName
 	Lookup(ctx context.Context, address netip.Addr) (string, error)
 }
 
-type resolverProvider struct {
-	resolver *net.Resolver
-	logger   *slog.Logger
+type OpenProviderFunc func(config ProviderConfig) (Provider, error)
+
+var providers map[ProviderName]OpenProviderFunc = make(map[ProviderName]OpenProviderFunc)
+
+func RegisterProvider(name ProviderName, open OpenProviderFunc) {
+	providers[name] = open
 }
 
-func NewResolverProvider(resolver *net.Resolver) Provider {
-	return &resolverProvider{
-		resolver: resolver,
-		logger:   slog.With(slog.String("dns", "resolver")),
+func Open(config ProviderConfig) (Provider, error) {
+	name := config.ProviderName()
+	open, ok := providers[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown GeoIP provider name '%s'", name)
 	}
-}
-
-func (p *resolverProvider) Lookup(ctx context.Context, address netip.Addr) (string, error) {
-	addressString := address.String()
-	addressLogger := p.logger.With(slog.String("address", addressString))
-	addressLogger.Debug("Looking up host name...")
-	names, err := p.resolver.LookupAddr(ctx, addressString)
-	if err != nil {
-		addressLogger.Info("DNS lookup failure", slog.Any("err", err))
-	}
-	if len(names) == 0 {
-		return "", nil
-	}
-	// Sort names to ensure stable result in case there are multiple names
-	slices.Sort(names)
-	name := names[0]
-	addressLogger.Debug("Looked up host name", slog.String("name", name))
-	return name, nil
+	return open(config)
 }

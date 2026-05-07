@@ -45,7 +45,19 @@ sensors = true
 include = "./sensors.d"
 default_host = ""
 
+[dns]
+provider = "system"
+
+[dns.system]
+
+[dns.custom]
+network = "udp"
+address = "localhost:53"
+
 [geoip]
+provider = "none"
+
+[geoip.none]
 
 [geoip.maxminddb]
 file = "./GeoLite2-City.mmdb"

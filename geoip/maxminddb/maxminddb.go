@@ -38,10 +38,6 @@ func (c *Config) ProviderName() geoip.ProviderName {
 	return ProviderName
 }
 
-func (c *Config) DatabaseName() string {
-	return "'" + c.File + "'"
-}
-
 type maxMindDB struct {
 	config *Config
 	reader *maxminddb.Reader
@@ -53,7 +49,7 @@ func open(config geoip.ProviderConfig) (geoip.Provider, error) {
 	if !ok {
 		return nil, fmt.Errorf("not a MaxMindDB configuration")
 	}
-	logger := slog.With(slog.String("geoip", fmt.Sprintf("%s/%s", maxMindDBConfig.ProviderName(), maxMindDBConfig.DatabaseName())))
+	logger := slog.With(slog.String("geoip", fmt.Sprintf("%s/%s", maxMindDBConfig.ProviderName(), maxMindDBConfig.File)))
 	logger.Debug("opening MaxMindDB...")
 	reader, err := maxminddb.Open(maxMindDBConfig.File)
 	if err != nil {
@@ -78,12 +74,12 @@ func (db *maxMindDB) Lookup(_ context.Context, address netip.Addr) (*geoip.Info,
 	result := db.reader.Lookup(address)
 	if !result.Found() {
 		addressLogger.Debug("address not found")
-		return nil, nil
+		return geoip.NoInfo, nil
 	}
 	location := &maxMindDBLocation{}
 	err := result.Decode(location)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode location data (cause: %w)", err)
+		return geoip.NoInfo, fmt.Errorf("failed to decode location data (cause: %w)", err)
 	}
 	addressLogger.Debug("address found")
 	return location.ToInfo(), nil

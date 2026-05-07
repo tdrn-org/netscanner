@@ -39,6 +39,10 @@ import (
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-httpserver/certificate"
 	"github.com/tdrn-org/go-log"
+	"github.com/tdrn-org/netscanner/dns"
+	customdns "github.com/tdrn-org/netscanner/dns/custom"
+	systemdns "github.com/tdrn-org/netscanner/dns/system"
+	"github.com/tdrn-org/netscanner/geoip"
 	"github.com/tdrn-org/netscanner/geoip/maxminddb"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
 	"github.com/tdrn-org/netscanner/sensor/logfile"
@@ -51,6 +55,7 @@ type Config struct {
 	Datastore DatastoreConfig `toml:"datastore"`
 	Metrics   MetricsConfig   `toml:"metrics"`
 	Sensors   SensorsConfig   `toml:"sensors"`
+	DNS       DNSConfig       `toml:"dns"`
 	GeoIP     GeoIPConfig     `toml:"geoip"`
 }
 
@@ -287,15 +292,73 @@ func (c *LogFileSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
 }
 
+type DNSConfig struct {
+	Provider  DNSProvider     `toml:"provider"`
+	SystemDNS SystemDNSConfig `toml:"system"`
+	CustomDNS CustomDNSConfig `toml:"custom"`
+}
+
+func (c *DNSConfig) config() dns.ProviderConfig {
+	switch c.Provider {
+	case DNSProvider(systemdns.ProviderName):
+		return c.SystemDNS.config()
+	case DNSProvider(customdns.ProviderName):
+		return c.CustomDNS.config()
+	}
+	slog.Warn("unexpected DNS provider", slog.String("provider", string(c.Provider)))
+	return nil
+}
+
+type SystemDNSConfig struct {
+	// no options
+}
+
+func (c *SystemDNSConfig) config() *systemdns.Config {
+	return &systemdns.Config{}
+}
+
+type CustomDNSConfig struct {
+	Network string `toml:"network"`
+	Address string `toml:"address"`
+}
+
+func (c *CustomDNSConfig) config() *customdns.Config {
+	return &customdns.Config{
+		Network: c.Network,
+		Address: c.Address,
+	}
+}
+
 type GeoIPConfig struct {
+	Provider  GeoIPProvider        `toml:"provider"`
+	None      NoneGeoIPConfig      `toml:"none"`
 	MaxMindDB MaxmindDBGeoIPConfig `toml:"maxminddb"`
+}
+
+func (c *GeoIPConfig) config() geoip.ProviderConfig {
+	switch c.Provider {
+	case GeoIPProvider(geoip.NoneProviderName):
+		return c.None.config()
+	case GeoIPProvider(maxminddb.ProviderName):
+		return c.MaxMindDB.config()
+	}
+	slog.Warn("unexpected GeoIP provider", slog.String("provider", string(c.Provider)))
+	return nil
+}
+
+type NoneGeoIPConfig struct {
+	// no options
+}
+
+func (c *NoneGeoIPConfig) config() *geoip.None {
+	return &geoip.None{}
 }
 
 type MaxmindDBGeoIPConfig struct {
 	File string `toml:"file"`
 }
 
-func (c MaxmindDBGeoIPConfig) config() *maxminddb.Config {
+func (c *MaxmindDBGeoIPConfig) config() *maxminddb.Config {
 	return &maxminddb.Config{
 		File: c.File,
 	}
@@ -575,6 +638,74 @@ func (n *SyslogNetwork) UnmarshalTOML(value any) error {
 		return fmt.Errorf("unknown syslog network: '%s'", networkString)
 	}
 	*n = network
+	return nil
+}
+
+type DNSProvider dns.ProviderName
+
+var knownDNSProviders map[string]DNSProvider = map[string]DNSProvider{
+	string(systemdns.ProviderName): DNSProvider(systemdns.ProviderName),
+	string(customdns.ProviderName): DNSProvider(customdns.ProviderName),
+}
+
+func (p *DNSProvider) Value() string {
+	for value, dnsProvider := range knownDNSProviders {
+		if *p == dnsProvider {
+			return value
+		}
+	}
+	slog.Warn("unexpected DNS provider", slog.Any("p", *p))
+	return ""
+}
+
+func (p *DNSProvider) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + p.Value() + `"`), nil
+}
+
+func (p *DNSProvider) UnmarshalTOML(value any) error {
+	dnsProviderString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected DNS provider type %v", value)
+	}
+	dnsProvider, ok := knownDNSProviders[dnsProviderString]
+	if !ok {
+		return fmt.Errorf("unknown DNS provider: '%s'", dnsProviderString)
+	}
+	*p = dnsProvider
+	return nil
+}
+
+type GeoIPProvider geoip.ProviderName
+
+var knownGeoIPProviders map[string]GeoIPProvider = map[string]GeoIPProvider{
+	string(geoip.NoneProviderName): GeoIPProvider(geoip.NoneProviderName),
+	string(maxminddb.ProviderName): GeoIPProvider(maxminddb.ProviderName),
+}
+
+func (p *GeoIPProvider) Value() string {
+	for value, geoipProvider := range knownGeoIPProviders {
+		if *p == geoipProvider {
+			return value
+		}
+	}
+	slog.Warn("unexpected GeoIP provider", slog.Any("p", *p))
+	return ""
+}
+
+func (p *GeoIPProvider) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + p.Value() + `"`), nil
+}
+
+func (p *GeoIPProvider) UnmarshalTOML(value any) error {
+	geoipProviderString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected GeoIP provider type %v", value)
+	}
+	geoipProvider, ok := knownGeoIPProviders[geoipProviderString]
+	if !ok {
+		return fmt.Errorf("unknown GeoIP provider: '%s'", geoipProviderString)
+	}
+	*p = geoipProvider
 	return nil
 }
 

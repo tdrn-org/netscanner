@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net"
 	"net/netip"
 	"time"
@@ -32,7 +31,6 @@ import (
 	"github.com/tdrn-org/netscanner/internal/cache"
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
 	"github.com/tdrn-org/netscanner/network"
-	"golang.org/x/text/language"
 )
 
 type Info struct {
@@ -83,12 +81,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 	logger := slog.With(slog.String("addr", address.String()))
 	info := &Info{
 		Address: address,
-		Geoip: geoip.Info{
-			Lat:     math.NaN(),
-			Lng:     math.NaN(),
-			City:    map[language.Tag]string{},
-			Country: map[language.Tag]string{},
-		},
+		Geoip:   *geoip.NoInfo,
 	}
 	info.Network = c.networks.Match(address)
 	info.HardwareAddress = c.arp.Lookup(ctx, address)
@@ -100,9 +93,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 	}
 	geoipInfo, err := c.geoip.Lookup(ctx, address)
 	if err == nil {
-		if geoipInfo != nil {
-			info.Geoip = *geoipInfo
-		}
+		info.Geoip = *geoipInfo
 	} else {
 		logger.Warn("failed to query GeoIP info", slog.Any("err", err))
 	}

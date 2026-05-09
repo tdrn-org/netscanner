@@ -22,6 +22,8 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tdrn-org/netscanner/dns"
@@ -29,6 +31,7 @@ import (
 	"github.com/tdrn-org/netscanner/internal/arp"
 	"github.com/tdrn-org/netscanner/internal/cache"
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
+	"github.com/tdrn-org/netscanner/internal/i18n"
 	"github.com/tdrn-org/netscanner/network"
 )
 
@@ -37,19 +40,42 @@ type Info struct {
 	Network         string
 	HardwareAddress net.HardwareAddr
 	DNS             string
-	Geoip           geoip.Info
+	Geo             geoip.Info
 }
 
 func (i *Info) Equal(i2 *Info) bool {
-	return i.Address == i2.Address && i.Network == i2.Network && i.DNS == i2.DNS && i.Geoip.Equal(&i2.Geoip)
+	return i.Address == i2.Address && i.Network == i2.Network && i.DNS == i2.DNS && i.Geo.Equal(&i2.Geo)
 }
 
 func (i *Info) String() string {
-	dns := "-"
-	if i.DNS != "" {
-		dns = i.DNS
+	buffer := &strings.Builder{}
+	buffer.WriteString("Address:")
+	buffer.WriteString(i.Address.String())
+	buffer.WriteString(" Network:")
+	buffer.WriteString(i.Network)
+	if i.HardwareAddress != nil {
+		buffer.WriteString(" MAC:")
+		buffer.WriteString(i.HardwareAddress.String())
 	}
-	return fmt.Sprintf("Address:%s Network:%s DNS:%s", i.Address, i.Network, dns)
+	if i.DNS != "" {
+		buffer.WriteString(" DNS:")
+		buffer.WriteString(i.DNS)
+	}
+	if !i.Geo.IsNaN() {
+		buffer.WriteString(" Loc:")
+		buffer.WriteString(strconv.FormatFloat(i.Geo.Lat, 'f', 2, 64))
+		buffer.WriteString(",")
+		buffer.WriteString(strconv.FormatFloat(i.Geo.Lng, 'f', 2, 64))
+	}
+	if len(i.Geo.City) > 0 {
+		buffer.WriteString(" City:")
+		buffer.WriteString(i18n.Name(i.Geo.City).String())
+	}
+	if len(i.Geo.Country) > 0 {
+		buffer.WriteString(" Country:")
+		buffer.WriteString(i18n.Name(i.Geo.Country).String())
+	}
+	return buffer.String()
 }
 
 type InfoCache struct {
@@ -80,7 +106,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 	logger := slog.With(slog.String("addr", address.String()))
 	info := &Info{
 		Address: address,
-		Geoip:   *geoip.NoInfo,
+		Geo:     *geoip.NoInfo,
 	}
 	info.Network = c.networks.Match(address)
 	info.HardwareAddress = c.arpCache.Get(ctx, address)
@@ -92,7 +118,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 	}
 	geoipInfo, err := c.geoip.Lookup(ctx, address)
 	if err == nil {
-		info.Geoip = *geoipInfo
+		info.Geo = *geoipInfo
 	} else {
 		logger.Warn("failed to query GeoIP info", slog.Any("err", err))
 	}

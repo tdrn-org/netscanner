@@ -54,15 +54,15 @@ func NewEventDevice(driver *database.Driver, deviceInfo *device.Info, generation
 		DNS:             deviceInfo.DNS,
 		HardwareAddress: deviceInfo.HardwareAddress.String(),
 		Lat: sql.NullFloat64{
-			Float64: deviceInfo.Geoip.Lat,
-			Valid:   !math.IsNaN(deviceInfo.Geoip.Lat),
+			Float64: deviceInfo.Geo.Lat,
+			Valid:   !math.IsNaN(deviceInfo.Geo.Lat),
 		},
 		Lng: sql.NullFloat64{
-			Float64: deviceInfo.Geoip.Lng,
-			Valid:   !math.IsNaN(deviceInfo.Geoip.Lng),
+			Float64: deviceInfo.Geo.Lng,
+			Valid:   !math.IsNaN(deviceInfo.Geo.Lng),
 		},
-		City:        deviceInfo.Geoip.City,
-		Country:     deviceInfo.Geoip.Country,
+		City:        deviceInfo.Geo.City,
+		Country:     deviceInfo.Geo.Country,
 		CountryCode: "",
 	}
 }

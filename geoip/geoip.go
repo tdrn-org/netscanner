@@ -22,6 +22,7 @@ import (
 	"math"
 	"net/netip"
 
+	"github.com/mmcloughlin/geohash"
 	"github.com/tdrn-org/netscanner/internal/i18n"
 	"golang.org/x/text/language"
 )
@@ -49,6 +50,14 @@ var NoInfo *Info = &Info{
 
 func (i *Info) Equal(i2 *Info) bool {
 	return i.Lat == i2.Lat && i.Lng == i2.Lng && i18n.Name(i.City).Equal(i2.City) && i18n.Name(i.Country).Equal(i2.City) && i.CountryCode == i2.CountryCode
+}
+
+func (i *Info) IsNaN() bool {
+	return math.IsNaN(i.Lat) || math.IsNaN(i.Lng)
+}
+
+func (i *Info) Hash(chars uint) string {
+	return geohash.EncodeWithPrecision(i.Lat, i.Lng, chars)
 }
 
 type Provider interface {

@@ -20,12 +20,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
-	"github.com/tdrn-org/go-tlsconf/tlsserver"
 	"github.com/tdrn-org/netscanner/logmatcher"
 	"github.com/tdrn-org/netscanner/sensor"
-	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
 func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.Sensor, error) {
@@ -33,33 +30,6 @@ func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.S
 		return s.addSyslogSensor(ctx, config.SyslogSensor)
 	}
 	return nil, fmt.Errorf("empty sensor configuration")
-}
-
-func (s *Server) addSyslogSensor(ctx context.Context, config *SyslogSensorConfig) (*sensor.Sensor, error) {
-	s.logger.Info("adding sensor", slog.Any("sensor", config))
-	index, err := s.resolveLogMatcherIndex(ctx, config.LogMatcherIndex)
-	if err != nil {
-		return nil, err
-	}
-	var source syslog.Sensor
-	switch config.Network {
-	case "tcp", "tcp4", "tcp6":
-		source, err = syslog.ListenTCP(index, string(config.Network), config.Address)
-	case "tcp+tls", "tcp4+tls", "tcp6+tls":
-		source, err = syslog.ListenTLS(index, strings.TrimSuffix(string(config.Network), "+tls"), config.Address, tlsserver.GetConfig())
-	case "udp", "udp4", "udp6":
-		source, err = syslog.ListenUDP(index, string(config.Network), config.Address)
-	default:
-		err = fmt.Errorf("unrecognized syslog network '%s'", config.Network)
-	}
-	if err != nil {
-		return nil, err
-	}
-	sensor := sensor.New(config.Name, source)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.sensors[sensor.Name()] = sensor
-	return sensor, nil
 }
 
 func (s *Server) resolveLogMatcherIndex(ctx context.Context, name string) (*logmatcher.Index, error) {
@@ -95,17 +65,17 @@ func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
 }
 
 func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
-	logger := s.logger.With(slog.String("address", event.Address.String()))
 	if event.HardwareAddress != nil {
-		logger.Debug("binding hardware address", slog.String("hardwareAddress", event.HardwareAddress.String()))
 		s.arpCache.Put(ctx, event.Address, event.HardwareAddress)
 	}
 }
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
 	deviceInfo := s.deviceInfos.Lookup(ctx, event.Address)
+	s.logger.Info(deviceInfo.String())
 	err := s.store.UpdateOrInsertEvent(ctx, event, deviceInfo)
 	if err != nil {
 		s.logger.Error("failed to record event", slog.Any("err", err))
 	}
+	s.metricsRecorder.RecordEvent(event, deviceInfo)
 }

@@ -19,11 +19,12 @@ package metrics
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/tdrn-org/netscanner/internal/device"
 	"github.com/tdrn-org/netscanner/sensor"
 )
 
 type Recorder interface {
-	RecordEvent(event *sensor.Event)
+	RecordEvent(event *sensor.Event, deviceInfo *device.Info)
 }
 
 func NewRecorder(registry *prometheus.Registry) Recorder {
@@ -35,16 +36,20 @@ func NewRecorder(registry *prometheus.Registry) Recorder {
 
 type noopRecorder struct{}
 
-func (r *noopRecorder) RecordEvent(_ *sensor.Event) {
+func (r *noopRecorder) RecordEvent(_ *sensor.Event, _ *device.Info) {
 	// no-op
 }
 
 type metricsRecorder struct {
-	Events *prometheus.CounterVec
+	Events       *prometheus.CounterVec
+	Geos         *prometheus.CounterVec
+	GeoHashChars uint
 }
 
 const metricsNamespace string = "netscanner"
 const metricsSubsystemSensors string = "sensors"
+const metricsNameEvents string = "events"
+const metricsNameGeos string = "geos"
 
 func newMetricsRecorder(registry *prometheus.Registry) *metricsRecorder {
 	factory := promauto.With(registry)
@@ -52,12 +57,27 @@ func newMetricsRecorder(registry *prometheus.Registry) *metricsRecorder {
 		Events: factory.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: metricsSubsystemSensors,
-			Name:      "events",
-		}, []string{"sensor", "service", "type"}),
+			Name:      metricsNameEvents,
+		}, []string{"host", "service", "network", "type"}),
+		Geos: factory.NewCounterVec(prometheus.CounterOpts{
+			Namespace: metricsNamespace,
+			Subsystem: metricsSubsystemSensors,
+			Name:      metricsNameGeos,
+		}, []string{"host", "service", "network", "type", "geohash"}),
+		GeoHashChars: 12,
 	}
 	return recorder
 }
 
-func (r *metricsRecorder) RecordEvent(event *sensor.Event) {
-	r.Events.WithLabelValues(event.Sensor, event.Service, string(event.Type)).Inc()
+func (r *metricsRecorder) RecordEvent(event *sensor.Event, deviceInfo *device.Info) {
+	eventsCounter, err := r.Events.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type))
+	if err == nil {
+		eventsCounter.Inc()
+	}
+	if !deviceInfo.Geo.IsNaN() {
+		geosCounter, err := r.Geos.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type), deviceInfo.Geo.Hash(r.GeoHashChars))
+		if err != nil {
+			geosCounter.Inc()
+		}
+	}
 }

@@ -27,35 +27,26 @@ import (
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
 )
 
-type Provider interface {
-	Lookup(ctx context.Context, address netip.Addr) net.HardwareAddr
-	Close() error
-}
-
-type CacheProvider struct {
+type Cache struct {
 	cache cache.KeyValue[netip.Addr, net.HardwareAddr]
 }
 
-func NewCacheProvider(ttl time.Duration) (*CacheProvider, error) {
-	cache, err := memory.NewKeyValue(0, time.Hour, func(_ context.Context, _ netip.Addr) (net.HardwareAddr, error) { return nil, cache.ErrNotFound })
+func NewCache(ttl time.Duration) (*Cache, error) {
+	cache, err := memory.NewKeyValue(0, ttl, func(_ context.Context, _ netip.Addr) (net.HardwareAddr, error) { return nil, cache.ErrNotFound })
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ARP cache (cause: %w)", err)
 	}
-	p := &CacheProvider{
+	c := &Cache{
 		cache: cache,
 	}
-	return p, nil
+	return c, nil
 }
 
-func (p *CacheProvider) Lookup(ctx context.Context, address netip.Addr) net.HardwareAddr {
-	hardwareAddress, _ := p.cache.Get(ctx, address)
+func (c *Cache) Get(ctx context.Context, address netip.Addr) net.HardwareAddr {
+	hardwareAddress, _ := c.cache.Get(ctx, address)
 	return hardwareAddress
 }
 
-func (p *CacheProvider) Bind(ctx context.Context, address netip.Addr, hardwareAddress net.HardwareAddr) {
-	p.cache.Put(ctx, address, hardwareAddress)
-}
-
-func (p *CacheProvider) Close() error {
-	return nil
+func (c *Cache) Put(ctx context.Context, address netip.Addr, hardwareAddress net.HardwareAddr) {
+	c.cache.Put(ctx, address, hardwareAddress)
 }

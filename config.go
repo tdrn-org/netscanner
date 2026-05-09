@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/rs/cors"
@@ -55,6 +56,7 @@ type Config struct {
 	Datastore DatastoreConfig `toml:"datastore"`
 	Metrics   MetricsConfig   `toml:"metrics"`
 	Sensors   SensorsConfig   `toml:"sensors"`
+	ARPCache  ARPCacheConfig  `toml:"arp_cache"`
 	DNS       DNSConfig       `toml:"dns"`
 	GeoIP     GeoIPConfig     `toml:"geoip"`
 }
@@ -290,6 +292,10 @@ type LogFileSensorConfig struct {
 
 func (c *LogFileSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
+}
+
+type ARPCacheConfig struct {
+	TTL DurationSpec `toml:"ttl"`
 }
 
 type DNSConfig struct {
@@ -706,6 +712,29 @@ func (p *GeoIPProvider) UnmarshalTOML(value any) error {
 		return fmt.Errorf("unknown GeoIP provider: '%s'", geoipProviderString)
 	}
 	*p = geoipProvider
+	return nil
+}
+
+type DurationSpec time.Duration
+
+func (spec *DurationSpec) Value() string {
+	return time.Duration(*spec).String()
+}
+
+func (spec *DurationSpec) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + spec.Value() + `"`), nil
+}
+
+func (spec *DurationSpec) UnmarshalTOML(value any) error {
+	durationString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected duration type %v", value)
+	}
+	parsedDuration, err := time.ParseDuration(durationString)
+	if err != nil {
+		return fmt.Errorf("invalid duration: '%s' (cause: %w)", durationString, err)
+	}
+	*spec = DurationSpec(parsedDuration)
 	return nil
 }
 

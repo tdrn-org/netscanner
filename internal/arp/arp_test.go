@@ -23,11 +23,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tdrn-org/netscanner/arp"
+	"github.com/tdrn-org/netscanner/internal/arp"
 )
 
-func TestCacheProvider(t *testing.T) {
-	cacheProvider, err := arp.NewCacheProvider(5 * time.Second)
+func TestCache(t *testing.T) {
+	cache, err := arp.NewCache(5 * time.Second)
 	require.NoError(t, err)
 
 	address := netip.IPv6Loopback()
@@ -35,17 +35,16 @@ func TestCacheProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	// No hit
-	found := cacheProvider.Lookup(t.Context(), address)
+	found := cache.Get(t.Context(), address)
 	require.Nil(t, found)
 
 	// Hit
-	cacheProvider.Bind(t.Context(), address, hardwareAddress)
-	found = cacheProvider.Lookup(t.Context(), address)
+	cache.Put(t.Context(), address, hardwareAddress)
+	found = cache.Get(t.Context(), address)
 	require.Equal(t, hardwareAddress, found)
 
 	// No hit (expired)
-	t.SkipNow() // TODO: Fix and re-enable
 	time.Sleep(10 * time.Second)
-	found = cacheProvider.Lookup(t.Context(), address)
+	found = cache.Get(t.Context(), address)
 	require.Nil(t, found)
 }

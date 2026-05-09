@@ -34,9 +34,9 @@ import (
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-tlsconf/tlsclient"
-	"github.com/tdrn-org/netscanner/arp"
 	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/geoip"
+	"github.com/tdrn-org/netscanner/internal/arp"
 	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/device"
 	"github.com/tdrn-org/netscanner/internal/metrics"
@@ -52,7 +52,7 @@ type Server struct {
 	baseURL         *url.URL
 	store           *datastore.Store
 	metricsRecorder metrics.Recorder
-	arpCache        *arp.CacheProvider
+	arpCache        *arp.Cache
 	deviceInfos     *device.InfoCache
 	defaultHost     string
 	sensors         map[string]*sensor.Sensor
@@ -179,19 +179,12 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 }
 
 func (s *Server) startARPCache(ctx context.Context, config *Config) error {
-	arpCache, err := arp.NewCacheProvider(time.Hour)
+	arpCache, err := arp.NewCache(time.Duration(config.ARPCache.TTL))
 	if err != nil {
 		return err
 	}
 	s.arpCache = arpCache
 	return nil
-}
-
-func (s *Server) closeARPCache() error {
-	if s.arpCache == nil {
-		return nil
-	}
-	return s.arpCache.Close()
 }
 
 func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
@@ -324,7 +317,6 @@ func (s *Server) Close() error {
 	closeFuncs := []func() error{
 		s.closeSensors,
 		s.closeInfoCache,
-		s.closeARPCache,
 		s.closeHttpServer,
 		s.closeDatastore,
 	}

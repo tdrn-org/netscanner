@@ -98,7 +98,7 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 	logger := s.logger.With(slog.String("address", event.Address.String()))
 	if event.HardwareAddress != nil {
 		logger.Debug("binding hardware address", slog.String("hardwareAddress", event.HardwareAddress.String()))
-		s.arpCache.Bind(ctx, event.Address, event.HardwareAddress)
+		s.arpCache.Put(ctx, event.Address, event.HardwareAddress)
 	}
 }
 

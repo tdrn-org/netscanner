@@ -45,6 +45,9 @@ sensors = true
 include = "./sensors.d"
 default_host = ""
 
+[arp_cache]
+ttl = "1h"
+
 [dns]
 provider = "system"
 

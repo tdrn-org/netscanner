@@ -18,16 +18,15 @@ package device
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
 	"time"
 
-	"github.com/tdrn-org/netscanner/arp"
 	"github.com/tdrn-org/netscanner/dns"
 	"github.com/tdrn-org/netscanner/geoip"
+	"github.com/tdrn-org/netscanner/internal/arp"
 	"github.com/tdrn-org/netscanner/internal/cache"
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
 	"github.com/tdrn-org/netscanner/network"
@@ -55,16 +54,16 @@ func (i *Info) String() string {
 
 type InfoCache struct {
 	networks *network.Names
-	arp      arp.Provider
+	arpCache *arp.Cache
 	dns      dns.Provider
 	geoip    geoip.Provider
 	cache    cache.KeyValue[netip.Addr, *Info]
 }
 
-func NewInfoCache(networks *network.Names, arp arp.Provider, dns dns.Provider, geoip geoip.Provider) (*InfoCache, error) {
+func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dns dns.Provider, geoip geoip.Provider) (*InfoCache, error) {
 	c := &InfoCache{
 		networks: networks,
-		arp:      arp,
+		arpCache: arpCache,
 		dns:      dns,
 		geoip:    geoip,
 	}
@@ -84,7 +83,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, er
 		Geoip:   *geoip.NoInfo,
 	}
 	info.Network = c.networks.Match(address)
-	info.HardwareAddress = c.arp.Lookup(ctx, address)
+	info.HardwareAddress = c.arpCache.Get(ctx, address)
 	dns, err := c.dns.Lookup(ctx, address)
 	if err == nil {
 		info.DNS = dns
@@ -109,5 +108,5 @@ func (c *InfoCache) Lookup(ctx context.Context, address netip.Addr) *Info {
 }
 
 func (c *InfoCache) Close() error {
-	return errors.Join(c.arp.Close(), c.geoip.Close())
+	return c.geoip.Close()
 }

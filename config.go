@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -116,7 +116,7 @@ func (c *ServerConfig) httpServerOptions() []httpserver.OptionSetter {
 	}
 	// Proxy configuration
 	if len(c.TrustedProxies) > 0 {
-		httpServerOptions = append(httpServerOptions, httpserver.WithTrustedProxyPolicy(httpserver.AllowNetworks("trusted proxies", c.TrustedProxies.IPNets())))
+		httpServerOptions = append(httpServerOptions, httpserver.WithTrustedProxyPolicy(httpserver.AllowNetworks("trusted proxies", c.TrustedProxies.Prefixes())))
 	}
 	if len(c.TrustedHeaders) > 0 {
 		httpServerOptions = append(httpServerOptions, httpserver.WithTrustedHeaders(c.TrustedHeaders...))
@@ -336,20 +336,32 @@ func (c *CustomDNSConfig) config() *customdns.Config {
 }
 
 type GeoIPConfig struct {
-	Provider  GeoIPProvider        `toml:"provider"`
+	Provider            GeoIPProvider `toml:"provider"`
+	AddressURLTemplate  string        `toml:"address_url_template"`
+	LocationURLTemplate string        `toml:"location_url_template"`
+	Mappings            []struct {
+		Networks NetworkSpecs `toml:"networks"`
+		Host     string       `toml:"host"`
+	} `toml:"mapping"`
 	None      NoneGeoIPConfig      `toml:"none"`
 	MaxMindDB MaxmindDBGeoIPConfig `toml:"maxminddb"`
 }
 
-func (c *GeoIPConfig) config() geoip.ProviderConfig {
+func (c *GeoIPConfig) config() (geoip.ProviderConfig, map[netip.Prefix]string) {
+	geoipMapping := make(map[netip.Prefix]string, 0)
+	for _, configMapping := range c.Mappings {
+		for _, network := range configMapping.Networks.Prefixes() {
+			geoipMapping[network] = configMapping.Host
+		}
+	}
 	switch c.Provider {
 	case GeoIPProvider(geoip.NoneProviderName):
-		return c.None.config()
+		return c.None.config(), geoipMapping
 	case GeoIPProvider(maxminddb.ProviderName):
-		return c.MaxMindDB.config()
+		return c.MaxMindDB.config(), geoipMapping
 	}
 	slog.Warn("unexpected GeoIP provider", slog.String("provider", string(c.Provider)))
-	return nil
+	return nil, nil
 }
 
 type NoneGeoIPConfig struct {
@@ -780,7 +792,7 @@ func (specs URLSpecs) URLs() []*url.URL {
 }
 
 type NetworkSpec struct {
-	net.IPNet
+	netip.Prefix
 }
 
 func (spec *NetworkSpec) Value() string {
@@ -796,20 +808,20 @@ func (spec *NetworkSpec) UnmarshalTOML(value any) error {
 	if !ok {
 		return fmt.Errorf("unexpected network type %v", value)
 	}
-	_, parsedNetwork, err := net.ParseCIDR(networkString)
+	parsedNetwork, err := netip.ParsePrefix(networkString)
 	if err != nil {
 		return fmt.Errorf("invalid network: '%s' (cause: %w)", networkString, err)
 	}
-	spec.IPNet = *parsedNetwork
+	spec.Prefix = parsedNetwork
 	return nil
 }
 
 type NetworkSpecs []NetworkSpec
 
-func (specs NetworkSpecs) IPNets() []*net.IPNet {
-	ipNets := make([]*net.IPNet, 0, len(specs))
+func (specs NetworkSpecs) Prefixes() []netip.Prefix {
+	networks := make([]netip.Prefix, 0, len(specs))
 	for _, spec := range specs {
-		ipNets = append(ipNets, &spec.IPNet)
+		networks = append(networks, spec.Prefix)
 	}
-	return ipNets
+	return networks
 }

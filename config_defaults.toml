@@ -59,6 +59,8 @@ address = "localhost:53"
 
 [geoip]
 provider = "none"
+address_url_template = "https://whois.domaintools.com/{{.Address}}"
+location_url_template = "https://maps.google.com/?q={{.Lat}},{{.Lng}}"
 
 [geoip.none]
 

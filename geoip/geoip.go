@@ -18,8 +18,11 @@ package geoip
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"math"
+	"net"
 	"net/netip"
 
 	"github.com/mmcloughlin/geohash"
@@ -74,11 +77,73 @@ func RegisterProvider(name ProviderName, open OpenProviderFunc) {
 	providers[name] = open
 }
 
-func Open(config ProviderConfig) (Provider, error) {
+func Open(config ProviderConfig, mapping map[netip.Prefix]string) (Provider, error) {
 	name := config.ProviderName()
 	open, ok := providers[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown GeoIP provider name '%s'", name)
 	}
-	return open(config)
+	provider, err := open(config)
+	if err != nil {
+		return nil, err
+	}
+	mappingProvider := &mappingProvider{
+		provider: provider,
+		mapping:  mapping,
+	}
+	return mappingProvider, nil
+}
+
+type mappingProvider struct {
+	provider Provider
+	mapping  map[netip.Prefix]string
+}
+
+func (p *mappingProvider) Name() ProviderName {
+	return p.provider.Name()
+}
+
+func (p *mappingProvider) Lookup(ctx context.Context, address netip.Addr) (*Info, error) {
+	mappedAddresses, err := p.mapAddress(ctx, address)
+	if err != nil {
+		return NoInfo, err
+	}
+	if len(mappedAddresses) == 0 {
+		return p.provider.Lookup(ctx, address)
+	}
+	lookupErrs := []error{}
+	for _, mappedAddress := range mappedAddresses {
+		info, err := p.provider.Lookup(ctx, mappedAddress)
+		if err == nil {
+			return info, nil
+		}
+		lookupErrs = append(lookupErrs, err)
+	}
+	return nil, errors.Join(lookupErrs...)
+}
+
+func (p *mappingProvider) mapAddress(ctx context.Context, address netip.Addr) ([]netip.Addr, error) {
+	for prefix, host := range p.mapping {
+		if prefix.Contains(address) {
+			hostAddrs, err := net.DefaultResolver.LookupHost(ctx, host)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve mapped host '%s' (cause: %w)", host, err)
+			}
+			mappedAddresses := make([]netip.Addr, 0, len(hostAddrs))
+			for _, hostAddr := range hostAddrs {
+				mappedAddress, err := netip.ParseAddr(hostAddr)
+				if err == nil {
+					mappedAddresses = append(mappedAddresses, mappedAddress)
+				} else {
+					slog.Warn("ignoring mapped GeoIP address", slog.String("address", hostAddr), slog.Any("cause", err))
+				}
+			}
+			return mappedAddresses, nil
+		}
+	}
+	return nil, nil
+}
+
+func (p *mappingProvider) Close() error {
+	return p.provider.Close()
 }

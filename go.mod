@@ -1,12 +1,12 @@
 module github.com/tdrn-org/netscanner
 
-go 1.26.0
+go 1.26
 
 require (
 	github.com/prometheus-community/pro-bing v0.8.0
 	github.com/rs/cors v1.11.1
-	github.com/tdrn-org/go-conf v0.0.5
-	golang.org/x/text v0.36.0
+	github.com/tdrn-org/go-conf v0.0.6
+	golang.org/x/text v0.37.0
 )
 
 require (
@@ -34,17 +34,17 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
-	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.72.1 // indirect
+	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.50.0 // indirect
 )
 
 require (
-	codeberg.org/miekg/dns v0.6.74
+	codeberg.org/miekg/dns v0.6.75
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0 // indirect
@@ -56,10 +56,10 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tdrn-org/go-database v0.0.4
 	github.com/tdrn-org/go-diff v0.1.3
-	github.com/tdrn-org/go-httpserver v0.0.9
-	github.com/tdrn-org/go-log v0.5.4
-	github.com/tdrn-org/go-tlsconf v0.0.9
-	golang.org/x/net v0.53.0 // indirect
+	github.com/tdrn-org/go-httpserver v0.1.0
+	github.com/tdrn-org/go-log v0.5.5
+	github.com/tdrn-org/go-tlsconf v0.0.10
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 )

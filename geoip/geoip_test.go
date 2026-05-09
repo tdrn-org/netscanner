@@ -38,7 +38,7 @@ const testCountry string = "Test country"
 const testCountryCode string = "tc"
 
 func TestNoneProvider(t *testing.T) {
-	provider, err := geoip.Open(&geoip.None{})
+	provider, err := geoip.Open(&geoip.None{}, nil)
 	require.NoError(t, err)
 
 	// Run tests
@@ -50,7 +50,7 @@ func TestMaxMindDBProvider(t *testing.T) {
 	config := &maxminddb.Config{
 		File: dbFile,
 	}
-	db, err := geoip.Open(config)
+	db, err := geoip.Open(config, nil)
 	require.NoError(t, err)
 	require.NotNil(t, db)
 

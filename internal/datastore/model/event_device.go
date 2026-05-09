@@ -68,7 +68,40 @@ func NewEventDevice(driver *database.Driver, deviceInfo *device.Info, generation
 }
 
 func (d *EventDevice) EqualDeviceInfo(deviceInfo *device.Info) bool {
-	return d.Address == deviceInfo.Address.StringExpanded() && d.Network == deviceInfo.Network && d.DNS == deviceInfo.DNS
+	if d.Address != deviceInfo.Address.StringExpanded() {
+		return false
+	}
+	if d.Network != deviceInfo.Network {
+		return false
+	}
+	if d.DNS != deviceInfo.DNS {
+		return false
+	}
+	if d.HardwareAddress != deviceInfo.HardwareAddress.String() {
+		return false
+	}
+	if d.Lat.Valid && math.IsNaN(deviceInfo.Geo.Lat) {
+		return false
+	}
+	if d.Lat.Float64 != deviceInfo.Geo.Lat {
+		return false
+	}
+	if d.Lng.Valid && math.IsNaN(deviceInfo.Geo.Lng) {
+		return false
+	}
+	if d.Lng.Float64 != deviceInfo.Geo.Lng {
+		return false
+	}
+	if !d.City.Equal(deviceInfo.Geo.City) {
+		return false
+	}
+	if !d.Country.Equal(deviceInfo.Geo.Country) {
+		return false
+	}
+	if d.CountryCode != deviceInfo.Geo.CountryCode {
+		return false
+	}
+	return true
 }
 
 //go:embed event_device.select_by_address.sql

@@ -7,3 +7,7 @@ access_log = "stdout"
 
 [sensors]
 include = "./testsensors.d"
+
+[[geoip.mapping]]
+networks = [ "192.168.0.0/16", "fd01::0/64" ]
+host = "myhost.test.tld"

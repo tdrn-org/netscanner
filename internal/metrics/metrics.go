@@ -17,6 +17,8 @@
 package metrics
 
 import (
+	"log/slog"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tdrn-org/netscanner/internal/device"
@@ -73,11 +75,15 @@ func (r *metricsRecorder) RecordEvent(event *sensor.Event, deviceInfo *device.In
 	eventsCounter, err := r.Events.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type))
 	if err == nil {
 		eventsCounter.Inc()
+	} else {
+		slog.Warn("events metric failure", slog.Any("err", err))
 	}
 	if !deviceInfo.Geo.IsNaN() {
 		geosCounter, err := r.Geos.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type), deviceInfo.Geo.Hash(r.GeoHashChars))
-		if err != nil {
+		if err == nil {
 			geosCounter.Inc()
+		} else {
+			slog.Warn("geos metric failure", slog.Any("err", err))
 		}
 	}
 }

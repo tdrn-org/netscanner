@@ -44,7 +44,7 @@ require (
 )
 
 require (
-	codeberg.org/miekg/dns v0.6.75
+	codeberg.org/miekg/dns v0.6.76
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0 // indirect

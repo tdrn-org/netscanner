@@ -41,14 +41,14 @@ func (t *Token) resolve() (TokenType, any) {
 	if t.typeHint != TokenTypeUnknown {
 		return t.typeHint, t.value
 	}
-	address, err := netip.ParseAddr(t.Symbol)
-	if err == nil {
+	address, ok := AddressValueResolver(t.Symbol)
+	if ok {
 		t.typeHint = TokenTypeAddress
 		t.value = address
 		return t.typeHint, t.value
 	}
-	hardwareAddress, err := net.ParseMAC(t.Symbol)
-	if err == nil {
+	hardwareAddress, ok := HardwareAddressValueResolver(t.Symbol)
+	if ok {
 		t.typeHint = TokenTypeHardwareAddress
 		t.value = hardwareAddress
 		return t.typeHint, t.value

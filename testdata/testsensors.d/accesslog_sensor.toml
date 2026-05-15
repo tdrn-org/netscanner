@@ -1,0 +1,20 @@
+[accesslog_sensor]
+name = "accesslog1"
+path = "/var/log/caddy/access_log.json"
+encoding = "json"
+#encoding = "regexp"
+
+[accesslog_sensor.json]
+timestamp_field = [ "ts" ]
+timestamp_layout = "02/Jan/2006:15:04:05 -0700"
+status_field = [ "status" ]
+address_field = [ "remote_ip" ]
+user_field = [ "user_id" ]
+
+[accesslog_sensor.regexp]
+pattern = "^(\\S+) .\\S+ (.\\S+) \\[(.*)\\] \\S+ \\S+ \\S+ (\\d\\d\\d).*"
+timestamp_field = 2
+timestamp_layout = "02/Jan/2006:15:04:05 -0700"
+status_field = 4
+address_field = 1
+user_field = 2

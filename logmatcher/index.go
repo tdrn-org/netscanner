@@ -117,13 +117,11 @@ func (i *Index) Size() int {
 	return i.matchCount
 }
 
-func (i *Index) ResolveValues(s string) *ResolvedValues {
+func (i *Index) ResolveValues(tokens []Token) *ResolvedValues {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
 
-	resolver := &indexResolver{}
-	tokens := i.tokenizer.Tokens(s)
-	return resolver.ResolveValues(&i.rootNode, tokens, 0)
+	return (&indexResolver{}).ResolveValues(&i.rootNode, tokens, 0)
 }
 
 type indexNode struct {

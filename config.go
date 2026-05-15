@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"time"
 
@@ -46,6 +47,7 @@ import (
 	"github.com/tdrn-org/netscanner/geoip"
 	"github.com/tdrn-org/netscanner/geoip/maxminddb"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/netscanner/sensor/accesslog"
 	"github.com/tdrn-org/netscanner/sensor/logfile"
 	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
@@ -241,8 +243,9 @@ func (c *SensorsConfig) Configs() iter.Seq[*SensorConfig] {
 }
 
 type SensorConfig struct {
-	SyslogSensor  *SyslogSensorConfig  `toml:"syslog_sensor"`
-	LogFileSensor *LogFileSensorConfig `toml:"logfile_sensor"`
+	SyslogSensor    *SyslogSensorConfig    `toml:"syslog_sensor"`
+	LogfileSensor   *LogfileSensorConfig   `toml:"logfile_sensor"`
+	AccesslogSensor *AccesslogSensorConfig `toml:"accesslog_sensor"`
 }
 
 func (c *SensorConfig) validate() error {
@@ -250,7 +253,10 @@ func (c *SensorConfig) validate() error {
 	if c.SyslogSensor != nil {
 		sensorCount++
 	}
-	if c.LogFileSensor != nil {
+	if c.LogfileSensor != nil {
+		sensorCount++
+	}
+	if c.AccesslogSensor != nil {
 		sensorCount++
 	}
 	switch sensorCount {
@@ -267,8 +273,11 @@ func (c *SensorConfig) String() string {
 	if c.SyslogSensor != nil {
 		return c.SyslogSensor.String()
 	}
-	if c.LogFileSensor != nil {
-		return c.LogFileSensor.String()
+	if c.LogfileSensor != nil {
+		return c.LogfileSensor.String()
+	}
+	if c.AccesslogSensor != nil {
+		return c.AccesslogSensor.String()
 	}
 	return ""
 }
@@ -284,14 +293,62 @@ func (c *SyslogSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s://%s]", syslog.Name, c.Name, c.Network, c.Address)
 }
 
-type LogFileSensorConfig struct {
+type LogfileSensorConfig struct {
 	Name            string `toml:"name"`
 	File            string `toml:"file"`
 	LogMatcherIndex string `toml:"log_matcher_index"`
 }
 
-func (c *LogFileSensorConfig) String() string {
+func (c *LogfileSensorConfig) String() string {
 	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
+}
+
+type AccesslogSensorConfig struct {
+	Name     string      `toml:"name"`
+	Path     string      `toml:"path"`
+	Encoding LogEncoding `toml:"encoding"`
+	JSON     struct {
+		TimestampField  []string `toml:"timestamp_field"`
+		TimestampLayout string   `toml:"timestamp_layout"`
+		StatusField     []string `toml:"status_field"`
+		AddressField    []string `toml:"address_field"`
+		UserField       []string `toml:"user_field"`
+	} `toml:"json"`
+	Regexp struct {
+		Pattern         RegexpSpec `toml:"pattern"`
+		TimestampField  int        `toml:"timestamp_field"`
+		TimestampLayout string     `toml:"timestamp_layout"`
+		StatusField     int        `toml:"status_field"`
+		AddressField    int        `toml:"address_field"`
+		UserField       int        `toml:"user_field"`
+	} `toml:"regexp"`
+}
+
+func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
+	return &accesslog.JSONScanOptions{
+		TimestampField:  c.JSON.TimestampField,
+		TimestampLayout: c.JSON.TimestampLayout,
+		StatusField:     c.JSON.StatusField,
+		AddressField:    c.JSON.AddressField,
+		UserField:       c.JSON.UserField,
+		Tail:            true, // for now we default to true (accept misses; before duplicates)
+	}
+}
+
+func (c *AccesslogSensorConfig) regexpScanOptions() *accesslog.RegexpScanOptions {
+	return &accesslog.RegexpScanOptions{
+		Pattern:         c.Regexp.Pattern.Regexp,
+		TimestampField:  c.Regexp.TimestampField,
+		TimestampLayout: c.Regexp.TimestampLayout,
+		StatusField:     c.Regexp.StatusField,
+		AddressField:    c.Regexp.AddressField,
+		UserField:       c.Regexp.UserField,
+		Tail:            true, // for now we default to true (accept misses; before duplicates)
+	}
+}
+
+func (c *AccesslogSensorConfig) String() string {
+	return fmt.Sprintf("%s/%s[%s]", accesslog.Name, c.Name, c.Path)
 }
 
 type ARPCacheConfig struct {
@@ -727,6 +784,45 @@ func (p *GeoIPProvider) UnmarshalTOML(value any) error {
 	return nil
 }
 
+type LogEncoding string
+
+const (
+	LogEncodingRegexp LogEncoding = "regexp"
+	LogEncodingJSON   LogEncoding = "json"
+)
+
+var knownLogEncodings map[string]LogEncoding = map[string]LogEncoding{
+	string(LogEncodingRegexp): LogEncodingRegexp,
+	string(LogEncodingJSON):   LogEncodingJSON,
+}
+
+func (e *LogEncoding) Value() string {
+	for value, encoding := range knownLogEncodings {
+		if *e == encoding {
+			return value
+		}
+	}
+	slog.Warn("unexpected Log encoding", slog.Any("e", *e))
+	return ""
+}
+
+func (e *LogEncoding) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + e.Value() + `"`), nil
+}
+
+func (e *LogEncoding) UnmarshalTOML(value any) error {
+	logEncodingString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected Log encoding type %v", value)
+	}
+	logEncoding, ok := knownLogEncodings[logEncodingString]
+	if !ok {
+		return fmt.Errorf("unknown Log encoding: '%s'", logEncodingString)
+	}
+	*e = logEncoding
+	return nil
+}
+
 type DurationSpec time.Duration
 
 func (spec *DurationSpec) Value() string {
@@ -824,4 +920,35 @@ func (specs NetworkSpecs) Prefixes() []netip.Prefix {
 		networks = append(networks, spec.Prefix)
 	}
 	return networks
+}
+
+type RegexpSpec struct {
+	*regexp.Regexp
+}
+
+func (spec *RegexpSpec) Value() string {
+	if spec.Regexp == nil {
+		return ""
+	}
+	return spec.String()
+}
+
+func (spec *RegexpSpec) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + spec.Value() + `"`), nil
+}
+
+func (spec *RegexpSpec) UnmarshalTOML(value any) error {
+	regexpString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected Regexp type %v", value)
+	}
+	if regexpString == "" {
+		return nil
+	}
+	parsedRegexp, err := regexp.Compile(regexpString)
+	if err != nil {
+		return fmt.Errorf("invalid Regexp: '%s' (cause: %w)", regexpString, err)
+	}
+	spec.Regexp = parsedRegexp
+	return nil
 }

@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/tdrn-org/netscanner/sensor"
 )
@@ -91,6 +92,8 @@ func (match Match) String() string {
 }
 
 type ResolvedValues struct {
+	Host            string
+	Timestamp       time.Time
 	EventType       sensor.EventType
 	Address         netip.Addr
 	HardwareAddress net.HardwareAddr

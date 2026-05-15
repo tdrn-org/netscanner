@@ -50,12 +50,12 @@ func open(config dns.ProviderConfig) (dns.Provider, error) {
 	if !ok {
 		return nil, fmt.Errorf("not a Custom DNS configuration")
 	}
-	provider := &customProvider{
+	p := &customProvider{
 		config: customConfig,
 		client: customdns.NewClient(),
 		logger: slog.With(slog.String("dns", fmt.Sprintf("%s://%s", customConfig.Network, customConfig.Address))),
 	}
-	return provider, nil
+	return p, nil
 }
 
 func (p *customProvider) Name() dns.ProviderName {
@@ -70,7 +70,7 @@ func (p *customProvider) Lookup(ctx context.Context, address netip.Addr) (string
 	msg := customdns.NewMsg(ptr, customdns.TypePTR)
 	rsp, _, err := p.client.Exchange(ctx, msg, p.config.Network, p.config.Address)
 	if err != nil {
-		addressLogger.Info("DNS lookup failure", slog.Any("err", err))
+		addressLogger.Warn("DNS lookup failure", slog.Any("err", err))
 		return "", nil
 	}
 	names := make([]string, 0, len(rsp.Answer))

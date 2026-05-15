@@ -66,7 +66,7 @@ func (p *systemProvider) Lookup(ctx context.Context, address netip.Addr) (string
 	addressLogger.Debug("Looking up host name...")
 	names, err := p.resolver.LookupAddr(ctx, addressString)
 	if err != nil {
-		addressLogger.Info("DNS lookup failure", slog.Any("err", err))
+		addressLogger.Warn("DNS lookup failure", slog.Any("err", err))
 	}
 	if len(names) == 0 {
 		return "", nil

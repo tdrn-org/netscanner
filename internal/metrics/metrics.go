@@ -50,8 +50,8 @@ type metricsRecorder struct {
 
 const metricsNamespace string = "netscanner"
 const metricsSubsystemSensors string = "sensors"
-const metricsNameEvents string = "events"
-const metricsNameGeos string = "geos"
+const metricsNameEvents string = "events_total"
+const metricsNameGeos string = "event_geos_total"
 
 func newMetricsRecorder(registry *prometheus.Registry) *metricsRecorder {
 	factory := promauto.With(registry)

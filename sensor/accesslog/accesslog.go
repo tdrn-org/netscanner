@@ -16,4 +16,43 @@
 
 package accesslog
 
+import (
+	"fmt"
+	"log/slog"
+
+	"github.com/tdrn-org/netscanner/internal/file"
+	"github.com/tdrn-org/netscanner/sensor"
+)
+
 const Name string = "accesslog"
+
+type Sensor interface {
+	Path() string
+	sensor.EventSource
+}
+
+func ScanRegexp(path string, options *RegexpScanOptions) (Sensor, error) {
+	err := options.validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid regexp scan opations (cause: %w)", err)
+	}
+	sensor := &regexpAccesslogSensor{
+		options: *options,
+		scanner: file.NewScanner(path, &file.RegexpDecoder{Pattern: options.Pattern}, options.Tail),
+		logger:  slog.With(slog.String("name", Name), slog.String("path", path), slog.String("encoding", "regexp")),
+	}
+	return sensor, nil
+}
+
+func ScanJSON(path string, options *JSONScanOptions) (Sensor, error) {
+	err := options.validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid json scan opations (cause: %w)", err)
+	}
+	sensor := &jsonAccesslogSensor{
+		options: *options,
+		scanner: file.NewScanner(path, &file.JSONDecoder{}, options.Tail),
+		logger:  slog.With(slog.String("name", Name), slog.String("path", path), slog.String("encoding", "json")),
+	}
+	return sensor, nil
+}

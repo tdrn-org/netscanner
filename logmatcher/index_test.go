@@ -41,14 +41,17 @@ func TestIndexSaveLoad(t *testing.T) {
 }
 
 func TestIndexResolveValues(t *testing.T) {
+	tokenizer := logmatcher.FieldsTokenizer
 	index := buildTestIndex(t)
 
 	// Resolve empty message
-	resolved1 := index.ResolveValues("")
+	tokens1 := []logmatcher.Token{}
+	resolved1 := index.ResolveValues(tokens1)
 	require.Nil(t, resolved1)
 
 	// Resolve matching message1
-	resolved2 := index.ResolveValues("Connection reset by authenticating user admin 127.0.0.1 port 63906 [preauth]")
+	tokens2 := tokenizer.Tokens("Connection reset by authenticating user admin 127.0.0.1 port 63906 [preauth]")
+	resolved2 := index.ResolveValues(tokens2)
 	require.NotNil(t, resolved2)
 	require.Equal(t, sensor.EventTypeDenied, resolved2.EventType)
 	require.Equal(t, "127.0.0.1", resolved2.Address.String())
@@ -57,7 +60,8 @@ func TestIndexResolveValues(t *testing.T) {
 	require.Equal(t, "sshd", resolved2.Service)
 
 	// Resolve matching message1
-	resolved3 := index.ResolveValues("Accepted publickey for root from ::1 port 41074 ssh2: RSA SHA256:xyz")
+	tokens3 := tokenizer.Tokens("Accepted publickey for root from ::1 port 41074 ssh2: RSA SHA256:xyz")
+	resolved3 := index.ResolveValues(tokens3)
 	require.NotNil(t, resolved3)
 	require.Equal(t, sensor.EventTypeGranted, resolved3.EventType)
 	require.Equal(t, "::1", resolved3.Address.String())
@@ -66,7 +70,8 @@ func TestIndexResolveValues(t *testing.T) {
 	require.Equal(t, "sshd", resolved3.Service)
 
 	// Resolve not matching message
-	resolved4 := index.ResolveValues("Connection closed by authenticating user admin ::1 port 45054 [preauth]")
+	tokens4 := tokenizer.Tokens("Connection closed by authenticating user admin ::1 port 45054 [preauth]")
+	resolved4 := index.ResolveValues(tokens4)
 	require.Nil(t, resolved4)
 }
 

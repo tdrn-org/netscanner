@@ -82,7 +82,7 @@ func newTCPSensor(index *logmatcher.Index, proto string, listener net.Listener) 
 		listener: listener,
 		logger:   slog.With(slog.String("sensor", Name), slog.String("proto", proto), slog.String("address", listener.Addr().String())),
 	}
-	sensor.logger.Info("listening")
+	sensor.logger.Info("listening...")
 	return sensor
 }
 
@@ -201,7 +201,9 @@ func queueSyslogMessages(index *logmatcher.Index, receiver sensor.EventReceiver,
 }
 
 func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, host string, timestamp time.Time, message string) {
-	resolved := index.ResolveValues(message)
+	tokenizer := logmatcher.FieldsTokenizer
+	tokens := tokenizer.Tokens(message)
+	resolved := index.ResolveValues(tokens)
 	if resolved != nil {
 		event := &sensor.Event{
 			Host:            host,

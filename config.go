@@ -304,8 +304,8 @@ type LogfileSensorConfig struct {
 		Pattern         RegexpSpec `toml:"pattern"`
 		TimestampField  int        `toml:"timestamp_field"`
 		TimestampLayout string     `toml:"timestamp_layout"`
-		HostField       int        `toml:"status_field"`
-		MessageField    int        `toml:"address_field"`
+		HostField       int        `toml:"host_field"`
+		MessageField    int        `toml:"message_field"`
 	} `toml:"regexp"`
 }
 

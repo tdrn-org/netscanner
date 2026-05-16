@@ -1,0 +1,11 @@
+[logfile_sensor]
+name = "logfile1"
+path = "/var/log/messages"
+log_matcher_index = "syslog"
+
+[logfile_sensor.regexp]
+pattern = "^(\\S+) .\\S+ (.\\S+) \\[(.*)\\] \\S+ \\S+ \\S+ (\\d\\d\\d).*"
+timestamp_field = 2
+timestamp_layout = "02/Jan/2006:15:04:05 -0700"
+host_field = 4
+message_field = 1

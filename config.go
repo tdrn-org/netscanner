@@ -282,6 +282,9 @@ func (c *SensorConfig) String() string {
 	return ""
 }
 
+const sensorStringFormatPath string = "%s/%s[%s]"
+const sensorStringFormatURL string = "%s/%s[%s://%s]"
+
 type SyslogSensorConfig struct {
 	Name            string        `toml:"name"`
 	Network         SyslogNetwork `toml:"network"`
@@ -290,31 +293,42 @@ type SyslogSensorConfig struct {
 }
 
 func (c *SyslogSensorConfig) String() string {
-	return fmt.Sprintf("%s/%s[%s://%s]", syslog.Name, c.Name, c.Network, c.Address)
+	return fmt.Sprintf(sensorStringFormatURL, syslog.Name, c.Name, c.Network, c.Address)
 }
 
 type LogfileSensorConfig struct {
 	Name            string `toml:"name"`
-	File            string `toml:"file"`
+	Path            string `toml:"path"`
 	LogMatcherIndex string `toml:"log_matcher_index"`
+	Regexp          struct {
+		Pattern         RegexpSpec `toml:"pattern"`
+		TimestampField  int        `toml:"timestamp_field"`
+		TimestampLayout string     `toml:"timestamp_layout"`
+		HostField       int        `toml:"status_field"`
+		MessageField    int        `toml:"address_field"`
+	} `toml:"regexp"`
 }
 
 func (c *LogfileSensorConfig) String() string {
-	return fmt.Sprintf("%s/%s[%s]", logfile.Name, c.Name, c.File)
+	return fmt.Sprintf(sensorStringFormatPath, logfile.Name, c.Name, c.Path)
+}
+
+func (c *LogfileSensorConfig) regexpScanOptions() *logfile.RegexpScanOptions {
+	return &logfile.RegexpScanOptions{
+		Pattern:         c.Regexp.Pattern.Regexp,
+		TimestampField:  c.Regexp.TimestampField,
+		TimestampLayout: c.Regexp.TimestampLayout,
+		HostField:       c.Regexp.HostField,
+		MessageField:    c.Regexp.MessageField,
+		Tail:            true, // for now we default to true (accept misses; before duplicates)
+	}
 }
 
 type AccesslogSensorConfig struct {
 	Name     string      `toml:"name"`
 	Path     string      `toml:"path"`
 	Encoding LogEncoding `toml:"encoding"`
-	JSON     struct {
-		TimestampField  []string `toml:"timestamp_field"`
-		TimestampLayout string   `toml:"timestamp_layout"`
-		StatusField     []string `toml:"status_field"`
-		AddressField    []string `toml:"address_field"`
-		UserField       []string `toml:"user_field"`
-	} `toml:"json"`
-	Regexp struct {
+	Regexp   struct {
 		Pattern         RegexpSpec `toml:"pattern"`
 		TimestampField  int        `toml:"timestamp_field"`
 		TimestampLayout string     `toml:"timestamp_layout"`
@@ -322,17 +336,17 @@ type AccesslogSensorConfig struct {
 		AddressField    int        `toml:"address_field"`
 		UserField       int        `toml:"user_field"`
 	} `toml:"regexp"`
+	JSON struct {
+		TimestampField  []string `toml:"timestamp_field"`
+		TimestampLayout string   `toml:"timestamp_layout"`
+		StatusField     []string `toml:"status_field"`
+		AddressField    []string `toml:"address_field"`
+		UserField       []string `toml:"user_field"`
+	} `toml:"json"`
 }
 
-func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
-	return &accesslog.JSONScanOptions{
-		TimestampField:  c.JSON.TimestampField,
-		TimestampLayout: c.JSON.TimestampLayout,
-		StatusField:     c.JSON.StatusField,
-		AddressField:    c.JSON.AddressField,
-		UserField:       c.JSON.UserField,
-		Tail:            true, // for now we default to true (accept misses; before duplicates)
-	}
+func (c *AccesslogSensorConfig) String() string {
+	return fmt.Sprintf(sensorStringFormatPath, logfile.Name, c.Name, c.Path)
 }
 
 func (c *AccesslogSensorConfig) regexpScanOptions() *accesslog.RegexpScanOptions {
@@ -347,8 +361,15 @@ func (c *AccesslogSensorConfig) regexpScanOptions() *accesslog.RegexpScanOptions
 	}
 }
 
-func (c *AccesslogSensorConfig) String() string {
-	return fmt.Sprintf("%s/%s[%s]", accesslog.Name, c.Name, c.Path)
+func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
+	return &accesslog.JSONScanOptions{
+		TimestampField:  c.JSON.TimestampField,
+		TimestampLayout: c.JSON.TimestampLayout,
+		StatusField:     c.JSON.StatusField,
+		AddressField:    c.JSON.AddressField,
+		UserField:       c.JSON.UserField,
+		Tail:            true, // for now we default to true (accept misses; before duplicates)
+	}
 }
 
 type ARPCacheConfig struct {

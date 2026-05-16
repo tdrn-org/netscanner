@@ -30,7 +30,7 @@ func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.S
 		return s.addSyslogSensor(ctx, config.SyslogSensor)
 	}
 	if config.LogfileSensor != nil {
-		// TODO
+		return s.addLogfileSensor(ctx, config.LogfileSensor)
 	}
 	if config.AccesslogSensor != nil {
 		return s.addAccesslogSensor(ctx, config.AccesslogSensor)
@@ -83,6 +83,7 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 }
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
+	s.logger.Info(event.String())
 	deviceInfo := s.deviceInfos.Lookup(ctx, event.Address)
 	s.logger.Info(deviceInfo.String())
 	err := s.store.UpdateOrInsertEvent(ctx, event, deviceInfo)

@@ -40,11 +40,11 @@ require (
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.0 // indirect
+	modernc.org/sqlite v1.50.1 // indirect
 )
 
 require (
-	codeberg.org/miekg/dns v0.6.76
+	codeberg.org/miekg/dns v0.6.77
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0 // indirect
@@ -54,7 +54,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.2.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tdrn-org/go-database v0.0.4
+	github.com/tdrn-org/go-database v0.0.5
 	github.com/tdrn-org/go-diff v0.1.3
 	github.com/tdrn-org/go-httpserver v0.1.0
 	github.com/tdrn-org/go-log v0.5.5

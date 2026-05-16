@@ -8,7 +8,7 @@ encoding = "json"
 timestamp_field = [ "ts" ]
 timestamp_layout = "02/Jan/2006:15:04:05 -0700"
 status_field = [ "status" ]
-address_field = [ "remote_ip" ]
+address_field = [ "request", "remote_ip" ]
 user_field = [ "user_id" ]
 
 [accesslog_sensor.regexp]

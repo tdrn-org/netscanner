@@ -143,6 +143,8 @@ func (s *regexpAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 				s.logger.Warn("resolve failure", slog.Any("err", err))
 				continue
 			}
+			event.Service = "http"
+			event.Sensor = Name
 			receiver.Queue(ctx, event)
 		}
 		s.logger.Info("stopping...")

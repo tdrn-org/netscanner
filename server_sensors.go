@@ -64,6 +64,12 @@ func (s *Server) eventReceiver() sensor.EventReceiver {
 }
 
 func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
+	if event.Host == "" {
+		event.Host = s.defaultHost
+	}
+	if event.Service == "" {
+		event.Service = event.Host
+	}
 	s.recordEventInfos(ctx, event)
 	if event.Type != sensor.EventTypeInformational {
 		s.recordEvent(ctx, event)

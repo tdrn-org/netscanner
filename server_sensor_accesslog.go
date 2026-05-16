@@ -25,7 +25,7 @@ import (
 	"github.com/tdrn-org/netscanner/sensor/accesslog"
 )
 
-func (s *Server) addAccesslogSensor(ctx context.Context, config *AccesslogSensorConfig) (*sensor.Sensor, error) {
+func (s *Server) addAccesslogSensor(_ context.Context, config *AccesslogSensorConfig) (*sensor.Sensor, error) {
 	s.logger.Info("adding sensor", slog.Any("sensor", config))
 	var source accesslog.Sensor
 	var err error

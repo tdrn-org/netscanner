@@ -79,16 +79,22 @@ func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
 	if d.HardwareAddress != deviceInfo.HardwareAddress.String() {
 		return false
 	}
-	if d.Lat.Valid && math.IsNaN(deviceInfo.Geo.Lat) {
+	if math.IsNaN(deviceInfo.Geo.Lat) {
+		if d.Lat.Valid {
+			return false
+		}
+	} else if !d.Lat.Valid {
+		return false
+	} else if d.Lat.Float64 != deviceInfo.Geo.Lat {
 		return false
 	}
-	if d.Lat.Float64 != deviceInfo.Geo.Lat {
+	if math.IsNaN(deviceInfo.Geo.Lng) {
+		if d.Lng.Valid {
+			return false
+		}
+	} else if !d.Lng.Valid {
 		return false
-	}
-	if d.Lng.Valid && math.IsNaN(deviceInfo.Geo.Lng) {
-		return false
-	}
-	if d.Lng.Float64 != deviceInfo.Geo.Lng {
+	} else if d.Lng.Float64 != deviceInfo.Geo.Lng {
 		return false
 	}
 	if !d.City.Equal(deviceInfo.Geo.City) {

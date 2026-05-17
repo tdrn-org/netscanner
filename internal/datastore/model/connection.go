@@ -47,52 +47,127 @@ func ConnectionStatusFromSensorEventType(eventType sensor.EventType) ConnectionS
 }
 
 type Connection struct {
-	driver *database.Driver
-	ID     string
-	Server *Device
-	Client *Device
-	Status ConnectionStatus
-	User   string
-	Count  int64
-	First  int64
-	Last   int64
+	driver  *database.Driver
+	ID      string
+	Server  *Device
+	Client  *Device
+	Service string
+	Status  ConnectionStatus
+	User    string
+	Count   int64
+	First   int64
+	Last    int64
 }
 
 func NewConnection(driver *database.Driver, server *Device, client *Device, event *sensor.Event) *Connection {
 	now := database.Now()
 	return &Connection{
-		driver: driver,
-		ID:     database.NewID(),
-		Server: server,
-		Client: client,
-		Status: ConnectionStatusFromSensorEventType(event.Type),
-		User:   event.User,
-		Count:  1,
-		First:  now,
-		Last:   now,
+		driver:  driver,
+		ID:      database.NewID(),
+		Server:  server,
+		Client:  client,
+		Service: event.Service,
+		Status:  ConnectionStatusFromSensorEventType(event.Type),
+		User:    event.User,
+		Count:   1,
+		First:   now,
+		Last:    now,
 	}
 }
 
-//go:embed connection.select_by_status_user.sql
-var connectionSelectByStatusUserSQL string
+//go:embed connection.select_by_cursor.sql
+var connectionSelectByCursorSQL string
 
-func SelectConnectionByStatusUser(ctx context.Context, driver *database.Driver, server *Device, client *Device, status ConnectionStatus, user string) (*Connection, error) {
+func SelectConnectionsByCursor(ctx context.Context, driver *database.Driver) ([]*Connection, error) {
 	txCtx, tx, err := driver.BeginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	row, err := tx.QueryRowTx(txCtx, connectionSelectByStatusUserSQL, server.ID, client.ID, status, user)
+	rows, err := tx.QueryTx(txCtx, connectionSelectByCursorSQL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	connections := make([]*Connection, 0)
+	for rows.Next() {
+		connection := &Connection{
+			driver: driver,
+			Server: &Device{
+				driver: driver,
+			},
+			Client: &Device{
+				driver: driver,
+			},
+		}
+		args := []any{
+			&connection.ID,
+			&connection.Service,
+			&connection.Status,
+			&connection.User,
+			&connection.Count,
+			&connection.First,
+			&connection.Last,
+			&connection.Server.ID,
+			&connection.Server.Address,
+			&connection.Server.Generation,
+			&connection.Server.Network,
+			&connection.Server.DNS,
+			&connection.Server.HardwareAddress,
+			&connection.Server.Lat,
+			&connection.Server.Lng,
+			&connection.Server.City,
+			&connection.Server.Country,
+			&connection.Server.CountryCode,
+			&connection.Client.Address,
+			&connection.Client.Address,
+			&connection.Client.Generation,
+			&connection.Client.Network,
+			&connection.Client.DNS,
+			&connection.Client.HardwareAddress,
+			&connection.Client.Lat,
+			&connection.Client.Lng,
+			&connection.Client.City,
+			&connection.Client.Country,
+			&connection.Client.CountryCode,
+		}
+		err := rows.Scan(args...)
+		if err != nil {
+			return nil, err
+		}
+		connections = append(connections, connection)
+	}
+
+	err = tx.CommitTx(txCtx)
+	if err != nil {
+		return nil, err
+	}
+	return connections, nil
+}
+
+//go:embed connection.select_by_service_status_user.sql
+var connectionSelectByServiceStatusUserSQL string
+
+func SelectConnectionByServiceStatusUser(ctx context.Context, driver *database.Driver, server *Device, client *Device, service string, status ConnectionStatus, user string) (*Connection, error) {
+	txCtx, tx, err := driver.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.RollbackUncommitedTx(txCtx)
+
+	row, err := tx.QueryRowTx(txCtx, connectionSelectByServiceStatusUserSQL, server.ID, client.ID, service, status, user)
 	if err != nil {
 		return nil, err
 	}
 	a := &Connection{
-		driver: driver,
-		Server: server,
-		Client: client,
-		Status: status,
-		User:   user,
+		driver:  driver,
+		Server:  server,
+		Client:  client,
+		Service: service,
+		Status:  status,
+		User:    user,
 	}
 	err = row.Scan(&a.ID, &a.Count, &a.First, &a.Last)
 	if database.NoRows(err) {
@@ -122,7 +197,7 @@ func (a *Connection) Insert(ctx context.Context) error {
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	err = tx.ExecTx(txCtx, connectionInsertSQL, a.ID, a.Server.ID, a.Client.ID, a.Status, a.User, a.Count, a.First, a.Last)
+	err = tx.ExecTx(txCtx, connectionInsertSQL, a.ID, a.Server.ID, a.Client.ID, a.Service, a.Status, a.User, a.Count, a.First, a.Last)
 	if err != nil {
 		return err
 	}

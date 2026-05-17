@@ -23,13 +23,14 @@ CREATE TABLE connection(
     id TEXT NOT NULL,
     server_id TEXT NOT NULL,
     client_id TEXT NOT NULL,
+    service TEXT NOT NULL,
     status TEXT NOT NULL,
     user TEXT NOT NULL,
     count INTEGER NOT NULL,
     first INTEGER NOT NULL,
     last INTEGER NOT NULL,
     PRIMARY KEY(id),
-    UNIQUE(server_id,client_id,user,status),
+    UNIQUE(server_id,client_id,service,status,user),
     FOREIGN KEY(server_id) REFERENCES device(id),
     FOREIGN KEY(client_id) REFERENCES device(id)
 );

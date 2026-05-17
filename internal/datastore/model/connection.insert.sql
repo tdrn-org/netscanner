@@ -3,6 +3,7 @@ INSERT INTO
         id,
         server_id,
         client_id,
+        service,
         status,
         user,
         count,
@@ -17,5 +18,6 @@ VALUES(
     $5,
     $6,
     $7,
-    $8
+    $8,
+    $9
 )

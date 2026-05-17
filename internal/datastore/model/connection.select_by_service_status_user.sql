@@ -8,5 +8,6 @@ FROM
 WHERE
     a.server_id = $1 AND
     a.client_id = $2 AND
-    a.status = $3 AND
-    a.user = $4
+    a.service = $3 AND
+    a.status = $4 AND
+    a.user = $5

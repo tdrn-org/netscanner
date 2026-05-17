@@ -56,7 +56,7 @@ func TestSelectOrInsertLogMatcherIndex(t *testing.T) {
 	require.Len(t, index2.Entries, 1)
 }
 
-func TestUpdateOrInsertEvent(t *testing.T) {
+func TestUpdateOrInsertConnection(t *testing.T) {
 	store := datastore.New(newDatastore(t))
 
 	// Insert

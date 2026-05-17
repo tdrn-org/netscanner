@@ -74,6 +74,10 @@ func (s *Store) SelectDeviceByID(ctx context.Context, id string) (*model.Device,
 	return model.SelectDeviceByID(ctx, s.driver, id)
 }
 
+func (s *Store) SelectConnectionsByCursor(ctx context.Context) ([]*model.Connection, error) {
+	return model.SelectConnectionsByCursor(ctx, s.driver)
+}
+
 func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device.Info, clientInfo *device.Info, event *sensor.Event) error {
 	txCtx, tx, err := s.driver.BeginTx(ctx)
 	if err != nil {
@@ -89,7 +93,7 @@ func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device
 	if err != nil {
 		return err
 	}
-	connection, err := model.SelectConnectionByStatusUser(txCtx, s.driver, server, server, model.ConnectionStatusFromSensorEventType(event.Type), event.User)
+	connection, err := model.SelectConnectionByServiceStatusUser(txCtx, s.driver, server, client, event.Service, model.ConnectionStatusFromSensorEventType(event.Type), event.User)
 	if database.NoRows(err) {
 		connection = model.NewConnection(s.driver, server, client, event)
 		err = connection.Insert(txCtx)

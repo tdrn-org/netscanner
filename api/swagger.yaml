@@ -89,7 +89,7 @@ info:
   title: NetScanner REST API
   version: "1.0"
 paths:
-  /api/v1/connections:
+  /api/v1/connection:
     get:
       description: List logged connections
       produces:
@@ -148,7 +148,7 @@ paths:
           schema:
             type: string
       summary: Ping the server
-  /api/v1/rules/lmis:
+  /api/v1/rules/lmi:
     get:
       description: List the names available log matcher indexes
       produces:
@@ -165,7 +165,7 @@ paths:
           schema:
             type: string
       summary: List log matcher index names
-  /api/v1/sensors:
+  /api/v1/sensor:
     get:
       description: List all running sensors as well as their stats
       produces:

@@ -15,7 +15,7 @@
     "host": "localhost:9123",
     "basePath": "/api/v1",
     "paths": {
-        "/api/v1/connections": {
+        "/api/v1/connection": {
             "get": {
                 "description": "List logged connections",
                 "produces": [
@@ -104,7 +104,7 @@
                 }
             }
         },
-        "/api/v1/rules/lmis": {
+        "/api/v1/rules/lmi": {
             "get": {
                 "description": "List the names available log matcher indexes",
                 "produces": [
@@ -130,7 +130,7 @@
                 }
             }
         },
-        "/api/v1/sensors": {
+        "/api/v1/sensor": {
             "get": {
                 "description": "List all running sensors as well as their stats",
                 "produces": [

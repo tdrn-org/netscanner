@@ -69,27 +69,27 @@ type SensorInfo struct {
 	EventCounter uint64 `json:"event_counter"`
 }
 
-// GET @BasePath/sensors
+// GET @BasePath/sensor
 //
 //	@Summary		List sensors
 //	@Description	List all running sensors as well as their stats
 //	@Produce		json
 //	@Success		200	{object}	[]SensorInfo
 //	@Failure		500	{string}	string	"server error"
-//	@Router			/api/v1/sensors [get]
+//	@Router			/api/v1/sensor [get]
 func (s *Server) handleSensorsGet(w http.ResponseWriter, r *http.Request) {
 	sensorInfos := s.ListSensors()
 	s.sendAPIApplicationJSONResponse(w, r, http.StatusOK, sensorInfos)
 }
 
-// GET @BasePath/rules/lmis
+// GET @BasePath/rules/lmi
 //
 //	@Summary		List log matcher index names
 //	@Description	List the names available log matcher indexes
 //	@Produce		json
 //	@Success		200	{object}	[]string
 //	@Failure		500	{string}	string	"server error"
-//	@Router			/api/v1/rules/lmis [get]
+//	@Router			/api/v1/rules/lmi [get]
 func (s *Server) handleLMIsGet(w http.ResponseWriter, r *http.Request) {
 	names, err := s.ListLogMatcherIndexNames(r.Context())
 	if err != nil {
@@ -172,7 +172,7 @@ type ConnectionInfo struct {
 	Last int `json:"last"`
 }
 
-// GET @BasePath/connections
+// GET @BasePath/connection
 //
 //	@Summary		List logged connections
 //	@Description	List logged connections
@@ -180,7 +180,7 @@ type ConnectionInfo struct {
 //	@Produce		text/plain
 //	@Success		200	{object}	[]ConnectionInfo
 //	@Failure		500	{string}	string	"nok"
-//	@Router			/api/v1/connections [get]
+//	@Router			/api/v1/connection [get]
 func (s *Server) handleConnectionsGet(w http.ResponseWriter, r *http.Request) {
 	conncetionInfos, err := s.ListConnections(r.Context())
 	if err != nil {

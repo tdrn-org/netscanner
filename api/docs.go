@@ -21,7 +21,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/connections": {
+        "/api/v1/connection": {
             "get": {
                 "description": "List logged connections",
                 "produces": [
@@ -110,7 +110,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/rules/lmis": {
+        "/api/v1/rules/lmi": {
             "get": {
                 "description": "List the names available log matcher indexes",
                 "produces": [
@@ -136,7 +136,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/sensors": {
+        "/api/v1/sensor": {
             "get": {
                 "description": "List all running sensors as well as their stats",
                 "produces": [

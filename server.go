@@ -94,10 +94,10 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 const apiBasePathV1 string = "/api/v1"
 
 const apiPathPingV1 string = apiBasePathV1 + "/ping"
-const apiPathSensorsV1 string = apiBasePathV1 + "/sensors"
-const apiPathLMIsV1 string = apiBasePathV1 + "/rules/lmis"
+const apiPathSensorsV1 string = apiBasePathV1 + "/sensor"
+const apiPathLMIsV1 string = apiBasePathV1 + "/rules/lmi"
 const apiPathDeviceV1 string = apiBasePathV1 + "/device/{id}"
-const apiPathConnectionsV1 string = apiBasePathV1 + "/connections"
+const apiPathConnectionsV1 string = apiBasePathV1 + "/connection"
 
 func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	s.logger.Info("starting HTTP server...")

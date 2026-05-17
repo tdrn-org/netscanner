@@ -24,6 +24,7 @@ import (
 	"math"
 	"net"
 
+	"github.com/tdrn-org/netscanner/internal/datastore/model"
 	"github.com/tdrn-org/netscanner/internal/i18n"
 	"github.com/tdrn-org/netscanner/ouidb"
 )
@@ -38,6 +39,11 @@ func (s *Server) GetDevice(ctx context.Context, id string) (*DeviceInfo, error) 
 	if device == nil {
 		return nil, ErrDeviceNotFound
 	}
+	deviceInfo := s.deviceToDeviceInfo(ctx, device)
+	return deviceInfo, nil
+}
+
+func (s *Server) deviceToDeviceInfo(ctx context.Context, device *model.Device) *DeviceInfo {
 	locale := i18n.Locale(ctx)
 	hardwareVendor := ""
 	if device.HardwareAddress != "" {
@@ -61,7 +67,7 @@ func (s *Server) GetDevice(ctx context.Context, id string) (*DeviceInfo, error) 
 	if device.Lng.Valid {
 		lat = device.Lng.Float64
 	}
-	deviceInfo := &DeviceInfo{
+	return &DeviceInfo{
 		ID:              device.ID,
 		Address:         device.Address,
 		Network:         device.Network,
@@ -74,5 +80,4 @@ func (s *Server) GetDevice(ctx context.Context, id string) (*DeviceInfo, error) 
 		Country:         device.Country[locale],
 		CountryCode:     device.CountryCode,
 	}
-	return deviceInfo, nil
 }

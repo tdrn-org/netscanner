@@ -19,6 +19,24 @@ package netscanner
 import "context"
 
 // TODO: Support filter, sort and pagination
-func (s *Server) ListConnections(ctx context.Context) ([]ConnectionInfo, error) {
-	return []ConnectionInfo{}, nil
+func (s *Server) ListConnections(ctx context.Context) ([]*ConnectionInfo, error) {
+	connections, err := s.store.SelectConnectionsByCursor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	connectionInfos := make([]*ConnectionInfo, 0, len(connections))
+	for _, connection := range connections {
+		connectionInfo := &ConnectionInfo{
+			ID:      connection.ID,
+			Server:  *s.deviceToDeviceInfo(ctx, connection.Server),
+			Client:  *s.deviceToDeviceInfo(ctx, connection.Client),
+			Service: connection.Service,
+			Status:  string(connection.Status),
+			Count:   connection.Count,
+			First:   connection.First,
+			Last:    connection.Last,
+		}
+		connectionInfos = append(connectionInfos, connectionInfo)
+	}
+	return connectionInfos, nil
 }

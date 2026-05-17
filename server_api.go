@@ -158,18 +158,18 @@ type ConnectionInfo struct {
 	ID string `json:"id"`
 	// The device info of the connected server
 	Server DeviceInfo `json:"server"`
-	// The accessed service
-	Service string `json:"service"`
 	// The device info of the connecting client
 	Client DeviceInfo `json:"client"`
+	// The accessed service
+	Service string `json:"service"`
 	// The status of connection (granted, denied, error, informational)
 	Status string `json:"status"`
 	// The number how often this connection has been logged
-	Count int `json:"count"`
+	Count int64 `json:"count"`
 	// The first point in time this connection has been logged
-	First int `json:"first"`
+	First int64 `json:"first"`
 	// The last point in time this connection has been logged
-	Last int `json:"last"`
+	Last int64 `json:"last"`
 }
 
 // GET @BasePath/connection

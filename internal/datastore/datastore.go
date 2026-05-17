@@ -81,11 +81,11 @@ func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	server, err := s.updateOrInsertDevice(txCtx, tx, serverInfo)
+	server, err := s.updateOrInsertDevice(txCtx, serverInfo)
 	if err != nil {
 		return err
 	}
-	client, err := s.updateOrInsertDevice(txCtx, tx, clientInfo)
+	client, err := s.updateOrInsertDevice(txCtx, clientInfo)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device
 	return nil
 }
 
-func (s *Store) updateOrInsertDevice(ctx context.Context, tx *database.Tx, deviceInfo *device.Info) (*model.Device, error) {
+func (s *Store) updateOrInsertDevice(ctx context.Context, deviceInfo *device.Info) (*model.Device, error) {
 	device, err := model.SelectDeviceByAddress(ctx, s.driver, deviceInfo.Address)
 	if err == nil {
 		if !device.EqualDeviceInfo(deviceInfo) {

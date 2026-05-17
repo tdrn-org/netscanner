@@ -18,7 +18,6 @@ package model
 
 import (
 	"context"
-	"database/sql"
 	_ "embed"
 	"math"
 	"net/netip"
@@ -36,14 +35,22 @@ type Device struct {
 	Network         string
 	DNS             string
 	HardwareAddress string
-	Lat             sql.NullFloat64
-	Lng             sql.NullFloat64
+	Lat             float64
+	Lng             float64
 	City            i18n.Name
 	Country         i18n.Name
 	CountryCode     string
 }
 
 func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int) *Device {
+	lat := deviceInfo.Geo.Lat
+	if math.IsNaN(lat) {
+		lat = 0.0
+	}
+	lng := deviceInfo.Geo.Lng
+	if math.IsNaN(lng) {
+		lng = 0.0
+	}
 	return &Device{
 		driver:          driver,
 		ID:              database.NewID(),
@@ -52,17 +59,11 @@ func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int)
 		Network:         deviceInfo.Network,
 		DNS:             deviceInfo.DNS,
 		HardwareAddress: deviceInfo.HardwareAddress.String(),
-		Lat: sql.NullFloat64{
-			Float64: deviceInfo.Geo.Lat,
-			Valid:   !math.IsNaN(deviceInfo.Geo.Lat),
-		},
-		Lng: sql.NullFloat64{
-			Float64: deviceInfo.Geo.Lng,
-			Valid:   !math.IsNaN(deviceInfo.Geo.Lng),
-		},
-		City:        deviceInfo.Geo.City,
-		Country:     deviceInfo.Geo.Country,
-		CountryCode: "",
+		Lat:             lat,
+		Lng:             lng,
+		City:            deviceInfo.Geo.City,
+		Country:         deviceInfo.Geo.Country,
+		CountryCode:     "",
 	}
 }
 
@@ -79,22 +80,10 @@ func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
 	if d.HardwareAddress != deviceInfo.HardwareAddress.String() {
 		return false
 	}
-	if math.IsNaN(deviceInfo.Geo.Lat) {
-		if d.Lat.Valid {
-			return false
-		}
-	} else if !d.Lat.Valid {
-		return false
-	} else if math.Abs(d.Lat.Float64-deviceInfo.Geo.Lat) > 0.0001 {
+	if math.Abs(d.Lat-deviceInfo.Geo.Lat) > 0.0001 {
 		return false
 	}
-	if math.IsNaN(deviceInfo.Geo.Lng) {
-		if d.Lng.Valid {
-			return false
-		}
-	} else if !d.Lng.Valid {
-		return false
-	} else if math.Abs(d.Lng.Float64-deviceInfo.Geo.Lng) > 0.0001 {
+	if math.Abs(d.Lng-deviceInfo.Geo.Lng) > 0.0001 {
 		return false
 	}
 	if !d.City.Equal(deviceInfo.Geo.City) {

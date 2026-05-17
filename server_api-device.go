@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net"
 
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
@@ -59,14 +58,6 @@ func (s *Server) deviceToDeviceInfo(ctx context.Context, device *model.Device) *
 			s.logger.Error("invalid MAC", slog.String("mac", device.HardwareAddress), slog.Any("err", err))
 		}
 	}
-	lat := math.NaN()
-	if device.Lat.Valid {
-		lat = device.Lat.Float64
-	}
-	lng := math.NaN()
-	if device.Lng.Valid {
-		lat = device.Lng.Float64
-	}
 	return &DeviceInfo{
 		ID:              device.ID,
 		Address:         device.Address,
@@ -74,8 +65,8 @@ func (s *Server) deviceToDeviceInfo(ctx context.Context, device *model.Device) *
 		HardwareAddress: device.HardwareAddress,
 		HardwareVendor:  hardwareVendor,
 		DNS:             device.DNS,
-		Lat:             lat,
-		Lng:             lng,
+		Lat:             device.Lat,
+		Lng:             device.Lng,
 		City:            device.City[locale],
 		Country:         device.Country[locale],
 		CountryCode:     device.CountryCode,

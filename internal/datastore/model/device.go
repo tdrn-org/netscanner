@@ -116,7 +116,7 @@ func SelectDeviceByID(ctx context.Context, driver *database.Driver, id string) (
 		driver: driver,
 		ID:     id,
 	}
-	err = row.Scan(&d.Generation, &d.Address, &d.Network, &d.DNS, &d.HardwareAddress, &d.Lat, &d.Lng, &d.City, &d.Country, &d.CountryCode)
+	err = row.Scan(&d.Address, &d.Generation, &d.Network, &d.DNS, &d.HardwareAddress, &d.Lat, &d.Lng, &d.City, &d.Country, &d.CountryCode)
 	if database.NoRows(err) {
 		commitErr := tx.CommitTx(txCtx)
 		if commitErr != nil {

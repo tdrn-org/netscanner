@@ -146,6 +146,12 @@ func (c *InfoCache) lookupQuery(ctx context.Context, query string) (netip.Addr, 
 		if err != nil {
 			continue
 		}
+		// Now re-resolve the address to get the "real" DNS name
+		dnsName, err := c.dnsProvider.LookupAddress(ctx, addr)
+		if err == nil {
+			return addr, dnsName, nil
+		}
+		// In case the reverse lookup fails, keep the "guessed" host name
 		return addr, hostName, nil
 	}
 	return netip.Addr{}, "", cache.ErrNotFound

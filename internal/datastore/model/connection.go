@@ -121,7 +121,7 @@ func SelectConnectionsByCursor(ctx context.Context, driver *database.Driver) ([]
 			&connection.Server.City,
 			&connection.Server.Country,
 			&connection.Server.CountryCode,
-			&connection.Client.Address,
+			&connection.Client.ID,
 			&connection.Client.Address,
 			&connection.Client.Generation,
 			&connection.Client.Network,

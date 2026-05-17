@@ -18,9 +18,12 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 )
+
+var ErrNotFound error = errors.New("host/address not not found")
 
 type ProviderName string
 
@@ -30,7 +33,8 @@ type ProviderConfig interface {
 
 type Provider interface {
 	Name() ProviderName
-	Lookup(ctx context.Context, address netip.Addr) (string, error)
+	LookupHost(ctx context.Context, host string) (netip.Addr, error)
+	LookupAddress(ctx context.Context, address netip.Addr) (string, error)
 }
 
 type OpenProviderFunc func(config ProviderConfig) (Provider, error)

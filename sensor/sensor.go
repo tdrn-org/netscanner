@@ -59,6 +59,10 @@ type Event struct {
 	Sensor          string
 }
 
+func (e *Event) IsValid() bool {
+	return e.Host != "" && !e.Timestamp.IsZero() && e.Type != "" && e.Address.IsValid() && e.Service != "" && e.Sensor != ""
+}
+
 func (e *Event) String() string {
 	host := "-"
 	if e.Host != "" {
@@ -117,6 +121,10 @@ func New(name string, source EventSource) *Sensor {
 		name:   baseName + strconv.Itoa(instance),
 		source: source,
 	}
+}
+
+func (s *Sensor) Type() string {
+	return s.source.Name()
 }
 
 func (s *Sensor) Name() string {

@@ -43,6 +43,10 @@ func (s *Store) Ping(ctx context.Context) error {
 	return s.driver.Ping(ctx)
 }
 
+func (s *Store) SelectLogMatcherIndexNames(ctx context.Context) ([]string, error) {
+	return model.SelectLogMatcherIndexNames(ctx, s.driver)
+}
+
 func (s *Store) SelectOrInsertLogMatcherIndex(ctx context.Context, name string) (*model.LogMatcherIndex, error) {
 	txCtx, tx, err := s.driver.BeginTx(ctx)
 	if err != nil {
@@ -66,47 +70,36 @@ func (s *Store) SelectOrInsertLogMatcherIndex(ctx context.Context, name string) 
 	return index, nil
 }
 
-func (s *Store) UpdateOrInsertEvent(ctx context.Context, event *sensor.Event, deviceInfo *device.Info) error {
+func (s *Store) SelectDeviceByID(ctx context.Context, id string) (*model.Device, error) {
+	return model.SelectDeviceByID(ctx, s.driver, id)
+}
+
+func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device.Info, clientInfo *device.Info, event *sensor.Event) error {
 	txCtx, tx, err := s.driver.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	target, err := model.SelectEventTargetByHostService(txCtx, s.driver, event.Host, event.Service)
-	if database.NoRows(err) {
-		target = model.NewEventTarget(s.driver, event.Host, event.Service)
-		err = target.Insert(txCtx)
-	}
+	server, err := s.updateOrInsertDevice(txCtx, tx, serverInfo)
 	if err != nil {
 		return err
 	}
-
-	device, err := model.SelectEventDeviceByAddress(txCtx, s.driver, event.Address)
-	if err == nil {
-		if !device.EqualDeviceInfo(deviceInfo) {
-			device = model.NewEventDevice(s.driver, deviceInfo, device.Generation+1)
-			err = device.Insert(txCtx)
-		}
-	} else if database.NoRows(err) {
-		device = model.NewEventDevice(s.driver, deviceInfo, 0)
-		err = device.Insert(txCtx)
-	}
+	client, err := s.updateOrInsertDevice(txCtx, tx, clientInfo)
 	if err != nil {
 		return err
 	}
-
-	action, err := model.SelectEventActionByUserStatus(txCtx, s.driver, target, device, event.User, model.EventActionStatusFromEventType(event.Type))
+	connection, err := model.SelectConnectionByStatusUser(txCtx, s.driver, server, server, model.ConnectionStatusFromSensorEventType(event.Type), event.User)
 	if database.NoRows(err) {
-		action = model.NewEventAction(s.driver, target, device, event)
-		err = action.Insert(txCtx)
+		connection = model.NewConnection(s.driver, server, client, event)
+		err = connection.Insert(txCtx)
 	} else if err == nil {
-		action.Count++
+		connection.Count++
 		eventTimestamp := database.Time2DB(event.Timestamp)
-		if action.Last < eventTimestamp {
-			action.Last = eventTimestamp
+		if connection.Last < eventTimestamp {
+			connection.Last = eventTimestamp
 		}
-		err = action.Update(txCtx)
+		err = connection.Update(txCtx)
 	}
 	if err != nil {
 		return err
@@ -117,4 +110,18 @@ func (s *Store) UpdateOrInsertEvent(ctx context.Context, event *sensor.Event, de
 		return err
 	}
 	return nil
+}
+
+func (s *Store) updateOrInsertDevice(ctx context.Context, tx *database.Tx, deviceInfo *device.Info) (*model.Device, error) {
+	device, err := model.SelectDeviceByAddress(ctx, s.driver, deviceInfo.Address)
+	if err == nil {
+		if !device.EqualDeviceInfo(deviceInfo) {
+			device = model.NewDevice(s.driver, deviceInfo, device.Generation+1)
+			err = device.Insert(ctx)
+		}
+	} else if database.NoRows(err) {
+		device = model.NewDevice(s.driver, deviceInfo, 0)
+		err = device.Insert(ctx)
+	}
+	return device, err
 }

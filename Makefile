@@ -94,3 +94,7 @@ clean: init
 tidy: init
 	go mod verify
 	go mod tidy
+
+.PHONY: generate
+generate: deps
+	go generate ./...

@@ -79,21 +79,21 @@ func (i *Info) String() string {
 }
 
 type InfoCache struct {
-	networks *network.Names
-	arpCache *arp.Cache
-	dns      dns.Provider
-	geoip    geoip.Provider
-	cache    cache.KeyValue[netip.Addr, *Info]
+	networks      *network.Names
+	arpCache      *arp.Cache
+	dnsProvider   dns.Provider
+	dnsDomains    []string
+	geoipProvider geoip.Provider
+	cache         cache.KeyValue[string, *Info]
 }
 
-func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dns dns.Provider, geoip geoip.Provider) (*InfoCache, error) {
+func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dnsProvider dns.Provider, dnsDomains []string, geoipProvider geoip.Provider) (*InfoCache, error) {
 	c := &InfoCache{
-		networks: networks,
-		arpCache: arpCache,
-		dns:      dns,
-		geoip:    geoip,
+		networks:      networks,
+		arpCache:      arpCache,
+		dnsProvider:   dnsProvider,
+		geoipProvider: geoipProvider,
 	}
-	// TODO: Cache configuration
 	cache, err := memory.NewKeyValue(0, time.Hour, c.loadInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device info cache (cause: %w)", err)
@@ -102,37 +102,59 @@ func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dns dns.Provider
 	return c, nil
 }
 
-func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, error) {
-	logger := slog.With(slog.String("addr", address.String()))
+func (c *InfoCache) loadInfo(ctx context.Context, query string) (*Info, error) {
+	queryLogger := slog.With(slog.String("query", query))
+	address, err := netip.ParseAddr(query)
+	hostName := ""
+	if err != nil {
+		hostName, err = c.dnsProvider.LookupAddress(ctx, address)
+		if err != nil {
+			queryLogger.Warn("failed to query DNS info", slog.Any("err", err))
+		}
+	} else {
+		address, hostName, err = c.lookupQuery(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+	}
 	info := &Info{
 		Address: address,
+		DNS:     hostName,
 		Geo:     *geoip.NoInfo,
 	}
 	info.Network = c.networks.Match(address)
 	info.HardwareAddress = c.arpCache.Get(ctx, address)
-	dns, err := c.dns.Lookup(ctx, address)
-	if err == nil {
-		info.DNS = dns
-	} else {
-		logger.Warn("failed to query DNS info", slog.Any("err", err))
-	}
-	geoipInfo, err := c.geoip.Lookup(ctx, address)
+	geoipInfo, err := c.geoipProvider.Lookup(ctx, address)
 	if err == nil {
 		info.Geo = *geoipInfo
 	} else {
-		logger.Warn("failed to query GeoIP info", slog.Any("err", err))
+		queryLogger.Warn("failed to query GeoIP info", slog.Any("err", err))
 	}
 	return info, nil
 }
 
-func (c *InfoCache) Lookup(ctx context.Context, address netip.Addr) *Info {
-	deviceInfo, match := c.cache.Get(ctx, address)
-	if !match {
-		return &Info{Address: address}
+func (c *InfoCache) lookupQuery(ctx context.Context, query string) (netip.Addr, string, error) {
+	hostNames := make([]string, 0, len(c.dnsDomains)+1)
+	hostNames = append(hostNames, query)
+	if !strings.HasSuffix(query, ".") {
+		for _, dnsDomain := range c.dnsDomains {
+			hostNames = append(hostNames, query+"."+dnsDomain)
+		}
 	}
-	return deviceInfo
+	for _, hostName := range hostNames {
+		addr, err := c.dnsProvider.LookupHost(ctx, hostName)
+		if err != nil {
+			continue
+		}
+		return addr, hostName, nil
+	}
+	return netip.Addr{}, "", cache.ErrNotFound
+}
+
+func (c *InfoCache) Lookup(ctx context.Context, query string) (*Info, bool) {
+	return c.cache.Get(ctx, query)
 }
 
 func (c *InfoCache) Close() error {
-	return c.geoip.Close()
+	return c.geoipProvider.Close()
 }

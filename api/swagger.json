@@ -1,0 +1,273 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Network activity monitoring server.",
+        "title": "NetScanner REST API",
+        "contact": {
+            "url": "https://github.com/tdrn-org/netscanner"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:9123",
+    "basePath": "/api/v1",
+    "paths": {
+        "/api/v1/connections": {
+            "get": {
+                "description": "List logged connections",
+                "produces": [
+                    "application/json",
+                    "text/plain"
+                ],
+                "summary": "List logged connections",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/netscanner.ConnectionInfo"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "nok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/device/{id}": {
+            "get": {
+                "description": "Get device info for the given ID",
+                "produces": [
+                    "application/json",
+                    "text/plain"
+                ],
+                "summary": "Get device info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/netscanner.DeviceInfo"
+                        }
+                    },
+                    "404": {
+                        "description": "not found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ping": {
+            "get": {
+                "description": "Ping the server to check general health",
+                "produces": [
+                    "text/plain"
+                ],
+                "summary": "Ping the server",
+                "responses": {
+                    "200": {
+                        "description": "ok",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/rules/lmis": {
+            "get": {
+                "description": "List the names available log matcher indexes",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "List log matcher index names",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sensors": {
+            "get": {
+                "description": "List all running sensors as well as their stats",
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "List sensors",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/netscanner.SensorInfo"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "netscanner.ConnectionInfo": {
+            "type": "object",
+            "properties": {
+                "client": {
+                    "description": "The device info of the connecting client",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/netscanner.DeviceInfo"
+                        }
+                    ]
+                },
+                "count": {
+                    "description": "The number how often this connection has been logged",
+                    "type": "integer"
+                },
+                "first": {
+                    "description": "The first point in time this connection has been logged",
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "The ID of the connection",
+                    "type": "string"
+                },
+                "last": {
+                    "description": "The last point in time this connection has been logged",
+                    "type": "integer"
+                },
+                "server": {
+                    "description": "The device info of the connected server",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/netscanner.DeviceInfo"
+                        }
+                    ]
+                },
+                "service": {
+                    "description": "The accessed service",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "The status of connection (granted, denied, error, informational)",
+                    "type": "string"
+                }
+            }
+        },
+        "netscanner.DeviceInfo": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "The network address of the device",
+                    "type": "string"
+                },
+                "city": {
+                    "description": "The city of the device's location (if available)",
+                    "type": "string"
+                },
+                "country": {
+                    "description": "The country of the device's location (if available)",
+                    "type": "string"
+                },
+                "country_code": {
+                    "description": "The country code of the device's location (if available)",
+                    "type": "string"
+                },
+                "dns": {
+                    "description": "The DNS name of the device (if available)",
+                    "type": "string"
+                },
+                "hardware_address": {
+                    "description": "The hardware address of the device (if available)",
+                    "type": "string"
+                },
+                "hardware_vendor": {
+                    "description": "The hardware vendor of the device (derived from hardware address)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The ID of the device",
+                    "type": "string"
+                },
+                "lat": {
+                    "description": "The latitude of the device's location (if available)",
+                    "type": "number"
+                },
+                "lng": {
+                    "description": "The longitude of the device's location (if available)",
+                    "type": "number"
+                },
+                "network": {
+                    "description": "The network the address belongs to",
+                    "type": "string"
+                }
+            }
+        },
+        "netscanner.SensorInfo": {
+            "type": "object",
+            "properties": {
+                "event_counter": {
+                    "description": "The number of events the sensor has collected since it has been started",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "The unique name of the sensor",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The type of the sensor (syslog, accesslog, ...)",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

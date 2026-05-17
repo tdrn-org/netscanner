@@ -62,31 +62,70 @@ func (p *customProvider) Name() dns.ProviderName {
 	return p.config.ProviderName()
 }
 
-func (p *customProvider) Lookup(ctx context.Context, address netip.Addr) (string, error) {
+func (p *customProvider) LookupHost(ctx context.Context, host string) (netip.Addr, error) {
+	hostLogger := p.logger.With(slog.String("host", host))
+	hostLogger.Debug("Looking up host...")
+	fdqn := dnsutil.Fqdn(host)
+	records, err := p.lookupHost(ctx, fdqn, customdns.TypeA)
+	if err == nil && len(records) == 0 {
+		records, err = p.lookupHost(ctx, fdqn, customdns.TypeAAAA)
+	}
+	if err != nil {
+		hostLogger.Warn("DNS lookup failure", slog.Any("err", err))
+		return netip.Addr{}, fmt.Errorf("%w (cause: %w)", dns.ErrNotFound, err)
+	}
+	if len(records) == 0 {
+		return netip.Addr{}, dns.ErrNotFound
+	}
+	// Sort results to ensure stable result in case there are multiple returned
+	slices.SortFunc(records, func(a1, a2 netip.Addr) int { return a1.Compare(a2) })
+	record0 := records[0]
+	hostLogger.Debug("Looked up address", slog.String("name", record0.String()))
+	return record0, nil
+}
+
+func (p *customProvider) lookupHost(ctx context.Context, fdqn string, t uint16) ([]netip.Addr, error) {
+	msg := customdns.NewMsg(fdqn, t)
+	rsp, _, err := p.client.Exchange(ctx, msg, p.config.Network, p.config.Address)
+	if err != nil {
+		return nil, err
+	}
+	records := make([]netip.Addr, 0, len(rsp.Answer))
+	for _, answer := range rsp.Answer {
+		if aRecord, ok := answer.(*customdns.A); ok {
+			records = append(records, aRecord.Addr)
+		} else if aaaaRecord, ok := answer.(*customdns.AAAA); ok {
+			records = append(records, aaaaRecord.Addr)
+		}
+	}
+	return records, nil
+}
+
+func (p *customProvider) LookupAddress(ctx context.Context, address netip.Addr) (string, error) {
 	addressString := address.String()
 	addressLogger := p.logger.With(slog.String("address", addressString))
-	addressLogger.Debug("Looking up host name...")
+	addressLogger.Debug("Looking up address...")
 	ptr := dnsutil.ReverseAddr(address)
 	msg := customdns.NewMsg(ptr, customdns.TypePTR)
 	rsp, _, err := p.client.Exchange(ctx, msg, p.config.Network, p.config.Address)
 	if err != nil {
 		addressLogger.Warn("DNS lookup failure", slog.Any("err", err))
-		return "", nil
+		return "", fmt.Errorf("%w (cause: %w)", dns.ErrNotFound, err)
 	}
-	names := make([]string, 0, len(rsp.Answer))
+	records := make([]string, 0, len(rsp.Answer))
 	for _, answer := range rsp.Answer {
 		if ptrRecord, ok := answer.(*customdns.PTR); ok {
-			names = append(names, ptrRecord.Ptr)
+			records = append(records, ptrRecord.Ptr)
 		}
 	}
-	if len(names) == 0 {
-		return "", nil
+	if len(records) == 0 {
+		return "", dns.ErrNotFound
 	}
-	// Sort names to ensure stable result in case there are multiple names
-	slices.Sort(names)
-	name := names[0]
-	addressLogger.Debug("Looked up host name", slog.String("name", name))
-	return name, nil
+	// Sort results to ensure stable result in case there are multiple returned
+	slices.Sort(records)
+	record0 := records[0]
+	addressLogger.Debug("Looked up address", slog.String("name", record0))
+	return record0, nil
 }
 
 func init() {

@@ -53,6 +53,7 @@ type Server struct {
 	store           *datastore.Store
 	metricsRecorder metrics.Recorder
 	arpCache        *arp.Cache
+	dnsProvider     dns.Provider
 	deviceInfos     *device.InfoCache
 	defaultHost     string
 	sensors         map[string]*sensor.Sensor
@@ -76,6 +77,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 		s.startDatastore,
 		s.startMetrics,
 		s.startARPCache,
+		s.startDNSProvider,
 		s.startInfoCache,
 		s.startSensors,
 	}
@@ -89,6 +91,14 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 	return s, nil
 }
 
+const apiBasePathV1 string = "/api/v1"
+
+const apiPathPingV1 string = apiBasePathV1 + "/ping"
+const apiPathSensorsV1 string = apiBasePathV1 + "/sensors"
+const apiPathLMIsV1 string = apiBasePathV1 + "/rules/lmis"
+const apiPathDeviceV1 string = apiBasePathV1 + "/device/{id}"
+const apiPathConnectionsV1 string = apiBasePathV1 + "/connections"
+
 func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	s.logger.Info("starting HTTP server...")
 	httpServerOptions := config.Server.httpServerOptions()
@@ -100,7 +110,11 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
-	httpServer.HandleFunc("GET /ping", s.handlePingGet)
+	httpServer.HandleFunc("GET "+apiPathPingV1, s.handlePingGet)
+	httpServer.HandleFunc("GET "+apiPathSensorsV1, s.handleSensorsGet)
+	httpServer.HandleFunc("GET "+apiPathLMIsV1, s.handleLMIsGet)
+	httpServer.HandleFunc("GET "+apiPathDeviceV1, s.handleDeviceGet)
+	httpServer.HandleFunc("GET "+apiPathConnectionsV1, s.handleConnectionsGet)
 	s.httpServer = httpServer
 	if config.Server.PublicURL.URL != nil {
 		s.baseURL = config.Server.PublicURL.URL
@@ -110,16 +124,6 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	// Replace early logger by one attributed with actual URL
 	s.logger = slog.With(slog.String("baseURL", s.baseURL.String()))
 	return nil
-}
-
-func (s *Server) handlePingGet(w http.ResponseWriter, r *http.Request) {
-	status := http.StatusOK
-	err := s.store.Ping(r.Context())
-	if err != nil {
-		s.logger.Warn("datastore ping failure", slog.Any("err", err))
-		status = http.StatusInternalServerError
-	}
-	w.WriteHeader(status)
 }
 
 func (s *Server) shutdownHttpServer(ctx context.Context) error {
@@ -187,17 +191,22 @@ func (s *Server) startARPCache(ctx context.Context, config *Config) error {
 	return nil
 }
 
-func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
-	networks := network.NewNames()
-	dns, err := dns.Open(config.DNS.config())
+func (s *Server) startDNSProvider(ctx context.Context, config *Config) error {
+	dnsProvider, err := dns.Open(config.DNS.config())
 	if err != nil {
 		return err
 	}
+	s.dnsProvider = dnsProvider
+	return nil
+}
+
+func (s *Server) startInfoCache(ctx context.Context, config *Config) error {
+	networks := network.NewNames()
 	geoip, err := geoip.Open(config.GeoIP.config())
 	if err != nil {
 		return err
 	}
-	deviceInfos, err := device.NewInfoCache(networks, s.arpCache, dns, geoip)
+	deviceInfos, err := device.NewInfoCache(networks, s.arpCache, s.dnsProvider, config.DNS.Domains, geoip)
 	if err != nil {
 		return err
 	}
@@ -283,7 +292,7 @@ func (s *Server) Ping(ctx context.Context) error {
 			TLSClientConfig: tlsclient.GetConfig(),
 		},
 	}
-	pingURL := s.httpServer.BaseURL().JoinPath("/ping").String()
+	pingURL := s.httpServer.BaseURL().JoinPath(apiPathPingV1).String()
 	rsp, err := client.Get(pingURL)
 	if err != nil {
 		return fmt.Errorf("failed to access URL: '%s' (cause: %w)", pingURL, err)

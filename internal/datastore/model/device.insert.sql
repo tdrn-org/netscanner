@@ -1,8 +1,8 @@
 INSERT INTO
-    event_device(
+    device(
         id,
-        address,
         generation,
+        address,
         network,
         dns,
         hardware_address,

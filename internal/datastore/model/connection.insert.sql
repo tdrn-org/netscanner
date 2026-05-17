@@ -1,10 +1,10 @@
 INSERT INTO
-    event_action(
+    connection(
         id,
-        target_id,
-        device_id,
-        user,
+        server_id,
+        client_id,
         status,
+        user,
         count,
         first,
         last

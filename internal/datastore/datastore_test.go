@@ -62,11 +62,11 @@ func TestUpdateOrInsertEvent(t *testing.T) {
 	// Insert
 	event := newEvent(t)
 	deviceInfo := newDeviceInfo()
-	err := store.UpdateOrInsertEvent(t.Context(), event, deviceInfo)
+	err := store.UpdateOrInsertConnection(t.Context(), deviceInfo, deviceInfo, event)
 	require.NoError(t, err)
 
 	// Update
-	err = store.UpdateOrInsertEvent(t.Context(), event, deviceInfo)
+	err = store.UpdateOrInsertConnection(t.Context(), deviceInfo, deviceInfo, event)
 	require.NoError(t, err)
 }
 

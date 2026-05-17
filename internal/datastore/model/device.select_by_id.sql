@@ -1,5 +1,5 @@
 SELECT
-    a.id,
+    a.address,
     a.generation,
     a.network,
     a.dns,
@@ -10,8 +10,8 @@ SELECT
     a.country,
     a.country_code
 FROM
-    event_device a
+    device a
 WHERE
-    a.address = $1
+    a.id = $1
 ORDER BY
     a.generation DESC

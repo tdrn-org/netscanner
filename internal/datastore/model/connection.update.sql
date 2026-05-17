@@ -1,5 +1,5 @@
 UPDATE
-    event_action
+    connection
 SET
     count = $1,
     last = $2

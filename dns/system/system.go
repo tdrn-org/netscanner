@@ -60,22 +60,46 @@ func (p *systemProvider) Name() dns.ProviderName {
 	return p.config.ProviderName()
 }
 
-func (p *systemProvider) Lookup(ctx context.Context, address netip.Addr) (string, error) {
+func (p *systemProvider) LookupHost(ctx context.Context, host string) (netip.Addr, error) {
+	hostLogger := p.logger.With(slog.String("host", host))
+	hostLogger.Debug("Looking up host...")
+	lookupResult, err := p.resolver.LookupHost(ctx, host)
+	if err != nil {
+		hostLogger.Warn("DNS lookup failure", slog.Any("err", err))
+	}
+	if len(lookupResult) == 0 {
+		return netip.Addr{}, dns.ErrNotFound
+	}
+	// Sort results to ensure stable result in case there are multiple returned
+	slices.Sort(lookupResult)
+	lookupResult0 := lookupResult[0]
+	address, err := netip.ParseAddr(lookupResult0)
+	if err != nil {
+		hostLogger.Error("invalid address in  DNS result", slog.Any("address", lookupResult0), slog.Any("err", err))
+		return netip.Addr{}, dns.ErrNotFound
+	}
+	hostLogger.Debug("Looked up host", slog.String("address", address.String()))
+	return address, nil
+}
+
+func (p *systemProvider) LookupAddress(ctx context.Context, address netip.Addr) (string, error) {
 	addressString := address.String()
 	addressLogger := p.logger.With(slog.String("address", addressString))
-	addressLogger.Debug("Looking up host name...")
-	names, err := p.resolver.LookupAddr(ctx, addressString)
+	addressLogger.Debug("Looking up address...")
+	lookupResult, err := p.resolver.LookupAddr(ctx, addressString)
 	if err != nil {
-		addressLogger.Warn("DNS lookup failure", slog.Any("err", err))
+		if dnsErr, ok := err.(*net.DNSError); !ok || !dnsErr.IsNotFound {
+			addressLogger.Warn("DNS reverse lookup failure", slog.Any("err", err))
+		}
 	}
-	if len(names) == 0 {
-		return "", nil
+	if len(lookupResult) == 0 {
+		return "", dns.ErrNotFound
 	}
-	// Sort names to ensure stable result in case there are multiple names
-	slices.Sort(names)
-	name := names[0]
-	addressLogger.Debug("Looked up host name", slog.String("name", name))
-	return name, nil
+	// Sort results to ensure stable result in case there are multiple returned
+	slices.Sort(lookupResult)
+	lookupResult0 := lookupResult[0]
+	addressLogger.Debug("Looked up address", slog.String("name", lookupResult0))
+	return lookupResult0, nil
 }
 
 func init() {

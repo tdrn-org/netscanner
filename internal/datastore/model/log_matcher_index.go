@@ -42,6 +42,37 @@ func NewLogMatcherIndex(driver *database.Driver, name string) *LogMatcherIndex {
 	}
 }
 
+//go:embed log_matcher_index.select_names.sql
+var logMatcherIndexSelectNamesSQL string
+
+func SelectLogMatcherIndexNames(ctx context.Context, driver *database.Driver) ([]string, error) {
+	txCtx, tx, err := driver.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.RollbackUncommitedTx(txCtx)
+
+	rows, err := tx.QueryTx(txCtx, logMatcherIndexSelectNamesSQL)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0)
+	for rows.Next() {
+		name := ""
+		err = rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+
+	err = tx.CommitTx(txCtx)
+	if err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
 //go:embed log_matcher_index.select_by_name.sql
 var logMatcherIndexSelectByNameSQL string
 

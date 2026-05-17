@@ -43,18 +43,27 @@ func TestCustomProvider(t *testing.T) {
 
 func runProviderTests(t *testing.T, provider dns.Provider) {
 	// 8.8.8.8
-	dns, err := provider.Lookup(t.Context(), netip.MustParseAddr("8.8.8.8"))
+	host, err := provider.LookupAddress(t.Context(), netip.MustParseAddr("8.8.8.8"))
 	require.NoError(t, err)
-	require.NotEmpty(t, dns)
+	require.NotEmpty(t, host)
 
 	// 2001:4860:4860::8888
-	dns, err = provider.Lookup(t.Context(), netip.MustParseAddr("2001:4860:4860::8888"))
+	host, err = provider.LookupAddress(t.Context(), netip.MustParseAddr("2001:4860:4860::8888"))
 	require.NoError(t, err)
-	require.NotEmpty(t, dns)
+	require.NotEmpty(t, host)
 
 	// 0.0.0.0
-	dns, err = provider.Lookup(t.Context(), netip.MustParseAddr("0.0.0.0"))
-	require.NoError(t, err)
-	require.Empty(t, dns)
+	host, err = provider.LookupAddress(t.Context(), netip.MustParseAddr("0.0.0.0"))
+	require.ErrorIs(t, err, dns.ErrNotFound)
+	require.Empty(t, host)
 
+	// dns.google
+	address, err := provider.LookupHost(t.Context(), "dns.google")
+	require.NoError(t, err)
+	require.True(t, address.IsValid())
+
+	// does.not.exist
+	address, err = provider.LookupHost(t.Context(), "does.not.exist")
+	require.ErrorIs(t, err, dns.ErrNotFound)
+	require.False(t, address.IsValid())
 }

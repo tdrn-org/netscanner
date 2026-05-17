@@ -50,6 +50,7 @@ ttl = "1h"
 
 [dns]
 provider = "system"
+domains = []
 
 [dns.system]
 

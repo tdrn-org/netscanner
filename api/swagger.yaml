@@ -1,0 +1,185 @@
+basePath: /api/v1
+definitions:
+  netscanner.ConnectionInfo:
+    properties:
+      client:
+        allOf:
+        - $ref: '#/definitions/netscanner.DeviceInfo'
+        description: The device info of the connecting client
+      count:
+        description: The number how often this connection has been logged
+        type: integer
+      first:
+        description: The first point in time this connection has been logged
+        type: integer
+      id:
+        description: The ID of the connection
+        type: string
+      last:
+        description: The last point in time this connection has been logged
+        type: integer
+      server:
+        allOf:
+        - $ref: '#/definitions/netscanner.DeviceInfo'
+        description: The device info of the connected server
+      service:
+        description: The accessed service
+        type: string
+      status:
+        description: The status of connection (granted, denied, error, informational)
+        type: string
+    type: object
+  netscanner.DeviceInfo:
+    properties:
+      address:
+        description: The network address of the device
+        type: string
+      city:
+        description: The city of the device's location (if available)
+        type: string
+      country:
+        description: The country of the device's location (if available)
+        type: string
+      country_code:
+        description: The country code of the device's location (if available)
+        type: string
+      dns:
+        description: The DNS name of the device (if available)
+        type: string
+      hardware_address:
+        description: The hardware address of the device (if available)
+        type: string
+      hardware_vendor:
+        description: The hardware vendor of the device (derived from hardware address)
+        type: string
+      id:
+        description: The ID of the device
+        type: string
+      lat:
+        description: The latitude of the device's location (if available)
+        type: number
+      lng:
+        description: The longitude of the device's location (if available)
+        type: number
+      network:
+        description: The network the address belongs to
+        type: string
+    type: object
+  netscanner.SensorInfo:
+    properties:
+      event_counter:
+        description: The number of events the sensor has collected since it has been
+          started
+        type: integer
+      name:
+        description: The unique name of the sensor
+        type: string
+      type:
+        description: The type of the sensor (syslog, accesslog, ...)
+        type: string
+    type: object
+host: localhost:9123
+info:
+  contact:
+    url: https://github.com/tdrn-org/netscanner
+  description: Network activity monitoring server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: NetScanner REST API
+  version: "1.0"
+paths:
+  /api/v1/connections:
+    get:
+      description: List logged connections
+      produces:
+      - application/json
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/netscanner.ConnectionInfo'
+            type: array
+        "500":
+          description: nok
+          schema:
+            type: string
+      summary: List logged connections
+  /api/v1/device/{id}:
+    get:
+      description: Get device info for the given ID
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/netscanner.DeviceInfo'
+        "404":
+          description: not found
+          schema:
+            type: string
+        "500":
+          description: server error
+          schema:
+            type: string
+      summary: Get device info
+  /api/v1/ping:
+    get:
+      description: Ping the server to check general health
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "500":
+          description: server error
+          schema:
+            type: string
+      summary: Ping the server
+  /api/v1/rules/lmis:
+    get:
+      description: List the names available log matcher indexes
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: server error
+          schema:
+            type: string
+      summary: List log matcher index names
+  /api/v1/sensors:
+    get:
+      description: List all running sensors as well as their stats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/netscanner.SensorInfo'
+            type: array
+        "500":
+          description: server error
+          schema:
+            type: string
+      summary: List sensors
+swagger: "2.0"

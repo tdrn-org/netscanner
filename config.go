@@ -378,6 +378,7 @@ type ARPCacheConfig struct {
 
 type DNSConfig struct {
 	Provider  DNSProvider     `toml:"provider"`
+	Domains   []string        `toml:"domains"`
 	SystemDNS SystemDNSConfig `toml:"system"`
 	CustomDNS CustomDNSConfig `toml:"custom"`
 }

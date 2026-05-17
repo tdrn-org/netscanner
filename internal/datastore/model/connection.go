@@ -24,72 +24,75 @@ import (
 	"github.com/tdrn-org/netscanner/sensor"
 )
 
-type EventActionStatus string
+type ConnectionStatus string
 
 const (
-	EventActionStatusGranted EventActionStatus = "granted"
-	EventActionStatusDenied  EventActionStatus = "denied"
-	EventActionStatusError   EventActionStatus = "error"
+	ConnectionStatusInformational ConnectionStatus = "informational"
+	ConnectionStatusGranted       ConnectionStatus = "granted"
+	ConnectionStatusDenied        ConnectionStatus = "denied"
+	ConnectionStatusError         ConnectionStatus = "error"
 )
 
-func EventActionStatusFromEventType(eventType sensor.EventType) EventActionStatus {
+func ConnectionStatusFromSensorEventType(eventType sensor.EventType) ConnectionStatus {
 	switch eventType {
+	case sensor.EventTypeInformational:
+		return ConnectionStatusInformational
 	case sensor.EventTypeGranted:
-		return EventActionStatusGranted
+		return ConnectionStatusGranted
 	case sensor.EventTypeDenied:
-		return EventActionStatusDenied
+		return ConnectionStatusDenied
 	default:
-		return EventActionStatusError
+		return ConnectionStatusError
 	}
 }
 
-type EventAction struct {
+type Connection struct {
 	driver *database.Driver
 	ID     string
-	Target *EventTarget
-	Device *EventDevice
+	Server *Device
+	Client *Device
+	Status ConnectionStatus
 	User   string
-	Status EventActionStatus
 	Count  int64
 	First  int64
 	Last   int64
 }
 
-func NewEventAction(driver *database.Driver, target *EventTarget, device *EventDevice, event *sensor.Event) *EventAction {
+func NewConnection(driver *database.Driver, server *Device, client *Device, event *sensor.Event) *Connection {
 	now := database.Now()
-	return &EventAction{
+	return &Connection{
 		driver: driver,
 		ID:     database.NewID(),
-		Target: target,
-		Device: device,
+		Server: server,
+		Client: client,
+		Status: ConnectionStatusFromSensorEventType(event.Type),
 		User:   event.User,
-		Status: EventActionStatusFromEventType(event.Type),
 		Count:  1,
 		First:  now,
 		Last:   now,
 	}
 }
 
-//go:embed event_action.select_by_user_status.sql
-var eventActionSelectByUserStatusSQL string
+//go:embed connection.select_by_status_user.sql
+var connectionSelectByStatusUserSQL string
 
-func SelectEventActionByUserStatus(ctx context.Context, driver *database.Driver, target *EventTarget, device *EventDevice, user string, status EventActionStatus) (*EventAction, error) {
+func SelectConnectionByStatusUser(ctx context.Context, driver *database.Driver, server *Device, client *Device, status ConnectionStatus, user string) (*Connection, error) {
 	txCtx, tx, err := driver.BeginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	row, err := tx.QueryRowTx(txCtx, eventActionSelectByUserStatusSQL, target.ID, device.ID, user, status)
+	row, err := tx.QueryRowTx(txCtx, connectionSelectByStatusUserSQL, server.ID, client.ID, status, user)
 	if err != nil {
 		return nil, err
 	}
-	a := &EventAction{
+	a := &Connection{
 		driver: driver,
-		Target: target,
-		Device: device,
-		User:   user,
+		Server: server,
+		Client: client,
 		Status: status,
+		User:   user,
 	}
 	err = row.Scan(&a.ID, &a.Count, &a.First, &a.Last)
 	if database.NoRows(err) {
@@ -109,17 +112,17 @@ func SelectEventActionByUserStatus(ctx context.Context, driver *database.Driver,
 	return a, nil
 }
 
-//go:embed event_action.insert.sql
-var eventActionInsertSQL string
+//go:embed connection.insert.sql
+var connectionInsertSQL string
 
-func (a *EventAction) Insert(ctx context.Context) error {
+func (a *Connection) Insert(ctx context.Context) error {
 	txCtx, tx, err := a.driver.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	err = tx.ExecTx(txCtx, eventActionInsertSQL, a.ID, a.Target.ID, a.Device.ID, a.User, a.Status, a.Count, a.First, a.Last)
+	err = tx.ExecTx(txCtx, connectionInsertSQL, a.ID, a.Server.ID, a.Client.ID, a.Status, a.User, a.Count, a.First, a.Last)
 	if err != nil {
 		return err
 	}
@@ -127,17 +130,17 @@ func (a *EventAction) Insert(ctx context.Context) error {
 	return tx.CommitTx(txCtx)
 }
 
-//go:embed event_action.update.sql
-var eventActionUpdateSQL string
+//go:embed connection.update.sql
+var connectionUpdateSQL string
 
-func (a *EventAction) Update(ctx context.Context) error {
+func (a *Connection) Update(ctx context.Context) error {
 	txCtx, tx, err := a.driver.BeginTx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	err = tx.ExecTx(txCtx, eventActionUpdateSQL, a.Count, a.Last, a.ID)
+	err = tx.ExecTx(txCtx, connectionUpdateSQL, a.Count, a.Last, a.ID)
 	if err != nil {
 		return err
 	}

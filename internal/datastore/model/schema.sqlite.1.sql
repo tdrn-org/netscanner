@@ -1,17 +1,10 @@
 --
--- Events
+-- Devices
 --
-CREATE TABLE event_target(
+CREATE TABLE device(
     id TEXT NOT NULL,
-    host TEXT NOT NULL,
-    service TEXT NOT NULL,
-    PRIMARY KEY(id),
-    UNIQUE(host, service)
-);
-CREATE TABLE event_device(
-    id TEXT NOT NULL,
-    address TEXT NOT NULL,
     generation INTEGER NOT NULL,
+    address TEXT NOT NULL,
     network TEXT NOT NULL,
     dns TEXT NOT NULL,
     hardware_address TEXT NOT NULL,
@@ -23,17 +16,22 @@ CREATE TABLE event_device(
     PRIMARY KEY(id),
     UNIQUE(address, generation)
 );
-CREATE TABLE event_action(
+--
+-- Connections
+--
+CREATE TABLE connection(
     id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    device_id TEXT NOT NULL,
-    user TEXT NOT NULL,
+    server_id TEXT NOT NULL,
+    client_id TEXT NOT NULL,
     status TEXT NOT NULL,
+    user TEXT NOT NULL,
     count INTEGER NOT NULL,
     first INTEGER NOT NULL,
     last INTEGER NOT NULL,
     PRIMARY KEY(id),
-    UNIQUE(target_id,device_id,user,status)
+    UNIQUE(server_id,client_id,user,status),
+    FOREIGN KEY(server_id) REFERENCES device(id),
+    FOREIGN KEY(client_id) REFERENCES device(id)
 );
 --
 -- LogMatcher

@@ -20,10 +20,28 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 
-	"github.com/tdrn-org/netscanner/logmatcher"
 	"github.com/tdrn-org/netscanner/sensor"
 )
+
+func (s *Server) ListSensors() []*SensorInfo {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	sensorInfos := make([]*SensorInfo, 0, len(s.sensors))
+	for _, sensor := range s.sensors {
+		sensorInfo := &SensorInfo{
+			Type:         sensor.Type(),
+			Name:         sensor.Name(),
+			EventCounter: sensor.EventCounter(),
+		}
+		sensorInfos = append(sensorInfos, sensorInfo)
+	}
+	slices.SortFunc(sensorInfos, func(si1 *SensorInfo, si2 *SensorInfo) int { return strings.Compare(si1.Name, si2.Name) })
+	return sensorInfos
+}
 
 func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.Sensor, error) {
 	if config.SyslogSensor != nil {
@@ -38,27 +56,6 @@ func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.S
 	return nil, fmt.Errorf("empty sensor configuration")
 }
 
-func (s *Server) resolveLogMatcherIndex(ctx context.Context, name string) (*logmatcher.Index, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	return s.resolveLogMatcherLocked(ctx, name)
-}
-
-func (s *Server) resolveLogMatcherLocked(ctx context.Context, name string) (*logmatcher.Index, error) {
-	index := s.logMatchers[name]
-	if index != nil {
-		return index, nil
-	}
-	indexModel, err := s.store.SelectOrInsertLogMatcherIndex(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	index = indexModel.ToIndex()
-	s.logMatchers[name] = index
-	return index, nil
-}
-
 func (s *Server) eventReceiver() sensor.EventReceiver {
 	return sensor.EventReceiverFunc(s.queueEvent)
 }
@@ -70,10 +67,12 @@ func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
 	if event.Service == "" {
 		event.Service = event.Host
 	}
-	s.recordEventInfos(ctx, event)
-	if event.Type != sensor.EventTypeInformational {
-		s.recordEvent(ctx, event)
+	if !event.IsValid() {
+		s.logger.Warn("ignoring partial event", slog.String("event", event.String()))
+		return
 	}
+	s.recordEventInfos(ctx, event)
+	s.recordEvent(ctx, event)
 }
 
 func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
@@ -83,12 +82,23 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 }
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
-	s.logger.Info(event.String())
-	deviceInfo := s.deviceInfos.Lookup(ctx, event.Address)
-	s.logger.Info(deviceInfo.String())
-	err := s.store.UpdateOrInsertEvent(ctx, event, deviceInfo)
-	if err != nil {
-		s.logger.Error("failed to record event", slog.Any("err", err))
+	// TODO: Log finalisieren
+	fmt.Println(event.String())
+	serverInfo, found := s.deviceInfos.Lookup(ctx, event.Host)
+	if !found {
+		s.logger.Warn("failed to lookup server device info", slog.String("host", event.Host))
 	}
-	s.metricsRecorder.RecordEvent(event, deviceInfo)
+	// TODO: Log finalisieren
+	fmt.Println(serverInfo)
+	clientInfo, found := s.deviceInfos.Lookup(ctx, event.Address.String())
+	if !found {
+		s.logger.Warn("failed to lookup client device info", slog.String("address", event.Address.String()))
+	}
+	// TODO: Log finalisieren
+	fmt.Println(clientInfo)
+	err := s.store.UpdateOrInsertConnection(ctx, serverInfo, clientInfo, event)
+	if err != nil {
+		s.logger.Error("failed to record connection", slog.Any("err", err))
+	}
+	s.metricsRecorder.RecordEvent(event, clientInfo)
 }

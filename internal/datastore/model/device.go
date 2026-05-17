@@ -85,7 +85,7 @@ func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
 		}
 	} else if !d.Lat.Valid {
 		return false
-	} else if d.Lat.Float64 != deviceInfo.Geo.Lat {
+	} else if math.Abs(d.Lat.Float64-deviceInfo.Geo.Lat) > 0.0001 {
 		return false
 	}
 	if math.IsNaN(deviceInfo.Geo.Lng) {
@@ -94,7 +94,7 @@ func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
 		}
 	} else if !d.Lng.Valid {
 		return false
-	} else if d.Lng.Float64 != deviceInfo.Geo.Lng {
+	} else if math.Abs(d.Lng.Float64-deviceInfo.Geo.Lng) > 0.0001 {
 		return false
 	}
 	if !d.City.Equal(deviceInfo.Geo.City) {

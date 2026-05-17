@@ -106,7 +106,7 @@ func (c *InfoCache) loadInfo(ctx context.Context, query string) (*Info, error) {
 	queryLogger := slog.With(slog.String("query", query))
 	address, err := netip.ParseAddr(query)
 	hostName := ""
-	if err != nil {
+	if err == nil {
 		hostName, err = c.dnsProvider.LookupAddress(ctx, address)
 		if err != nil {
 			queryLogger.Warn("failed to query DNS info", slog.Any("err", err))

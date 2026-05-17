@@ -2,7 +2,7 @@ SELECT
     a.id,
     a.service,
     a.status,
-    a.user
+    a.user,
     a.count,
     a.first,
     a.last,
@@ -25,12 +25,13 @@ SELECT
     c.lng,
     c.city,
     c.country,
-    c.country_code,
+    c.country_code
 FROM
     connection a,
-    device b
+    device b,
+    device c
 WHERE
     a.server_id = b.id AND
-    a.client_id = b.id
+    a.client_id = c.id
 ORDER BY
     a.last DESC

@@ -54,7 +54,7 @@ func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int)
 	return &Device{
 		driver:          driver,
 		ID:              database.NewID(),
-		Address:         deviceInfo.Address.StringExpanded(),
+		Address:         deviceInfo.Address.String(),
 		Generation:      generation,
 		Network:         deviceInfo.Network,
 		DNS:             deviceInfo.DNS,
@@ -68,7 +68,7 @@ func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int)
 }
 
 func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
-	if d.Address != deviceInfo.Address.StringExpanded() {
+	if d.Address != deviceInfo.Address.String() {
 		return false
 	}
 	if d.Network != deviceInfo.Network {
@@ -144,14 +144,14 @@ func SelectDeviceByAddress(ctx context.Context, driver *database.Driver, address
 	}
 	defer tx.RollbackUncommitedTx(txCtx)
 
-	addressExpanded := address.StringExpanded()
-	row, err := tx.QueryRowTx(txCtx, deviceSelectByAddressSQL, addressExpanded)
+	addressString := address.String()
+	row, err := tx.QueryRowTx(txCtx, deviceSelectByAddressSQL, addressString)
 	if err != nil {
 		return nil, err
 	}
 	d := &Device{
 		driver:  driver,
-		Address: addressExpanded,
+		Address: addressString,
 	}
 	err = row.Scan(&d.ID, &d.Generation, &d.Network, &d.DNS, &d.HardwareAddress, &d.Lat, &d.Lng, &d.City, &d.Country, &d.CountryCode)
 	if database.NoRows(err) {

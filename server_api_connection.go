@@ -37,6 +37,10 @@ func (s *Server) ListConnections(ctx context.Context) ([]*ConnectionInfo, error)
 			Last:    connection.Last,
 		}
 		connectionInfos = append(connectionInfos, connectionInfo)
+		// TODO: Fixed limit until cursor ist implemented
+		if len(connectionInfos) >= 50 {
+			break
+		}
 	}
 	return connectionInfos, nil
 }

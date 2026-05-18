@@ -19,9 +19,12 @@ statisches Bundle ausgeliefert. Der Build-Output landet in `internal/web/build/`
 | SvelteKit         | **Svelte 5** – ausschließlich Runes-API                |
 | Adapter           | `@sveltejs/adapter-static`, output: `build/`           |
 | CSS               | **TailwindCSS v4** – kein `tailwind.config.js`         |
-| Lokalisierung     | **Paraglide JS** (`@inlang/paraglide-sveltekit`)       |
+| Lokalisierung     | **Leichtgewichtiger i18n-Layer** (`$lib/i18n.ts`) – liest direkt aus `messages/{de,en}.json`. Keine externen Dependencies, kein Build-Step. |
+| Icons             | `@lucide/svelte`                                       |
 | Paketmanager      | `npm` (Makefile nutzt `$(NPM) --prefix internal/web`)  |
 | TypeScript        | strict mode                                            |
+
+> **Hinweis zu i18n:** Paraglide v2 wurde evaluiert und verworfen — der SvelteKit-Adapter ist deprecated, und die Message-Generierung funktionierte nicht zuverlässig. Der selbstgebaute Layer (`$lib/i18n.ts`) bietet die gleiche API (`m.key()`), keine Build-Abhängigkeiten, und die JSON-Dateien in `messages/` sind das Single Source of Truth auch für Go (`web.go` parsed sie serverseitig).
 
 ---
 
@@ -49,12 +52,15 @@ export default {
 
 ### Go embed.FS
 
-Go bindet `internal/web/build/` so ein:
+Go bindet `internal/web/build/` und `internal/web/messages/` so ein:
 
 ```go
-// internal/web/web.go (bereits vorhanden – NICHT modifizieren)
-//go:embed build
-var staticFiles embed.FS
+// internal/web/web.go
+//go:embed all:build/*
+var buildFS embed.FS
+
+//go:embed all:messages/*
+var messagesFS embed.FS
 ```
 
 Go leitet alle Requests, die nicht mit `/api/` beginnen, auf `build/index.html` um.
@@ -163,27 +169,28 @@ export const api = {
 import type { SensorInfo, ConnectionInfo } from './types.js';
 
 export const mockSensors: SensorInfo[] = [
-  { name: 'syslog-local', type: 'syslog', event_counter: 1024 },
-  { name: 'nginx-access', type: 'accesslog', event_counter: 8731 },
+  { name: 'accesslog/accesslog1#1', type: 'accesslog', event_counter: 8472 },
+  { name: 'syslog/syslog1#1', type: 'syslog', event_counter: 3156 },
 ];
 
 export const mockConnections: ConnectionInfo[] = [
   {
     id: 'c001',
-    server: { id: 's1', address: '192.168.1.1', network: '192.168.1.0/24',
-              hardware_address: 'aa:bb:cc:dd:ee:ff', hardware_vendor: 'Cisco',
-              dns: 'router.local', lat: 48.1, lng: 11.5,
+    server: { id: 's1', address: '10.1.1.1', network: '10.1.0.0/16',
+              hardware_address: 'aa:bb:cc:dd:ee:01', hardware_vendor: 'Cisco',
+              dns: 'gateway.local', lat: 48.1351, lng: 11.5820,
               city: 'Munich', country: 'Germany', country_code: 'DE' },
-    client: { id: 'c1', address: '10.0.0.5', network: '10.0.0.0/8',
-              hardware_address: '', hardware_vendor: '',
-              dns: '', lat: 37.7, lng: -122.4,
-              city: 'San Francisco', country: 'United States', country_code: 'US' },
+    client: { id: 'c1', address: '192.168.1.42', network: '192.168.1.0/24',
+              hardware_address: '11:22:33:44:55:66', hardware_vendor: 'Intel',
+              dns: 'workstation.local', lat: 48.1351, lng: 11.5820,
+              city: 'Munich', country: 'Germany', country_code: 'DE' },
     service: 'HTTPS',
     status: 'granted',
-    count: 42,
+    count: 142,
     first: Date.now() - 86400000,
     last: Date.now(),
   },
+  // ... weitere Einträge in der tatsächlichen Datei
 ];
 ```
 
@@ -209,12 +216,20 @@ export const mockConnections: ConnectionInfo[] = [
 
 **Dark Mode ist obligatorisch** – das gesamte UI ist dunkel (kein Light-Mode-Toggle nötig).
 
+### Utility-Klassen (in `app.css` definiert)
+
+```css
+.glass { @apply bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50; }
+.card  { @apply bg-slate-900 border border-slate-700/50 rounded-lg; }
+.badge { @apply px-2 py-0.5 rounded text-xs font-mono font-medium; }
+```
+
 ### Navbar
 
-- Glassmorphism: `bg-slate-900/80 backdrop-blur-md`
-- `sticky top-0 z-50`
-- Aktiver Link: `text-indigo-400`
-- Inaktiver Link: `text-stone-300 hover:text-white`
+- Glassmorphism: `glass` + `sticky top-0 z-50`
+- Aktiver Link: `bg-indigo-500/10 text-indigo-400`
+- Inaktiver Link: `text-stone-300 hover:bg-slate-800 hover:text-white`
+- Icons von `@lucide/svelte`
 
 ### Verbindungsstatus-Badge
 
@@ -222,16 +237,21 @@ export const mockConnections: ConnectionInfo[] = [
 <!-- $lib/components/ui/StatusBadge.svelte -->
 <script lang="ts">
   import type { ConnectionInfo } from '$lib/types.js';
+  import { m } from '$lib/i18n.js';
+
   let { status }: { status: ConnectionInfo['status'] } = $props();
 
-  const classes: Record<ConnectionInfo['status'], string> = {
-    granted:       'text-green-400 bg-green-400/10',
-    denied:        'text-red-400 bg-red-400/10',
-    error:         'text-red-400 bg-red-400/10',
-    informational: 'text-amber-400 bg-amber-400/10',
+  const config: Record<ConnectionInfo['status'], { cls: string; label: () => string }> = {
+    granted:       { cls: 'badge text-green-400 bg-green-400/10 border border-green-400/20', label: () => m.status_granted() },
+    denied:        { cls: 'badge text-red-400 bg-red-400/10 border border-red-400/20', label: () => m.status_denied() },
+    error:         { cls: 'badge text-red-400 bg-red-400/10 border border-red-400/20', label: () => m.status_error() },
+    informational: { cls: 'badge text-amber-400 bg-amber-400/10 border border-amber-400/20', label: () => m.status_informational() }
   };
+
+  let current = $derived(config[status]);
 </script>
-<span class="px-2 py-0.5 rounded text-xs font-mono {classes[status]}">{status}</span>
+
+<span class={current.cls}>{current.label()}</span>
 ```
 
 ---
@@ -300,8 +320,8 @@ Svelte 4 Syntax ist **verboten**. Der Agent muss ausschließlich Runes verwenden
 @import "tailwindcss";
 
 @theme {
-  --color-accent-primary: theme(colors.indigo.400);
-  --color-accent-secondary: theme(colors.cyan.400);
+  --color-accent-primary: var(--color-indigo-400);
+  --color-accent-secondary: var(--color-cyan-400);
 }
 ```
 
@@ -312,19 +332,19 @@ Regeln:
 
 ---
 
-## Paraglide – Lokalisierung
+## i18n – Lokalisierung (`$lib/i18n.ts`)
 
-Alle sichtbaren Texte müssen über Paraglide-Nachrichten laufen. Keine hardcodierten Strings im Template.
+Alle sichtbaren Texte müssen über `m.key()` aus `$lib/i18n.ts` laufen. Keine hardcodierten Strings im Template.
 
 ### Nachrichten verwenden
 
 ```svelte
 <script lang="ts">
-  import * as m from '$lib/paraglide/messages.js';
+  import { m } from '$lib/i18n.js';
 </script>
 
-<h1>{m.page_connections_title()}</h1>
-<p>{m.sensor_event_count({ count: sensor.event_counter })}</p>
+<h1>{m.connections_title()}</h1>
+<p>{m.sensor_event_count()}</p>
 ```
 
 ### Nachrichten-Dateien
@@ -334,7 +354,7 @@ Jede neue Nachricht muss in **beide** Dateien eingetragen werden:
 `messages/de.json`:
 ```json
 {
-  "page_connections_title": "Verbindungen",
+  "connections_title": "Verbindungen",
   "sensor_event_count": "{count} Events"
 }
 ```
@@ -342,12 +362,16 @@ Jede neue Nachricht muss in **beide** Dateien eingetragen werden:
 `messages/en.json`:
 ```json
 {
-  "page_connections_title": "Connections",
+  "connections_title": "Connections",
   "sensor_event_count": "{count} events"
 }
 ```
 
-`src/paraglide/` ist **generierter Code** – niemals manuell editieren.
+Der `$lib/i18n.ts`-Layer:
+- Erkennt die Sprache via `navigator.language` (fällt auf `de` zurück)
+- Exportiert `m` als Proxy, der `m.key()` → übersetzten String macht
+- Die JSON-Dateien werden direkt importiert (Typ `Record<string, string>`)
+- Go liest die gleichen JSON-Dateien serverseitig via `web.go` `initMessageTables()`
 
 ---
 
@@ -355,36 +379,39 @@ Jede neue Nachricht muss in **beide** Dateien eingetragen werden:
 
 ```
 internal/web/
+├── web.go                           # Go embed.FS + serverseitige i18n-Message-Tables
 ├── src/
-│   ├── app.css                      # TailwindCSS v4 Entry (@theme hier)
+│   ├── app.css                      # TailwindCSS v4 Entry (@theme + utility classes)
 │   ├── app.html
-│   ├── hooks.server.ts              # Paraglide handle()
+│   ├── app.d.ts
+│   ├── hooks.server.ts              # Minimal (no-op)
+│   ├── hooks.ts                     # Minimal (no-op)
 │   ├── lib/
 │   │   ├── api.ts                   # Zentraler API-Client (alle fetch-Calls)
 │   │   ├── types.ts                 # TypeScript-Interfaces (spiegeln Go-Structs)
 │   │   ├── mocks.ts                 # Mock-Daten für Dev ohne Backend
-│   │   ├── i18n.ts                  # Paraglide i18n Export
-│   │   ├── paraglide/               # GENERIERT – nicht editieren
+│   │   ├── i18n.ts                  # i18n-Layer (importiert messages/*.json)
+│   │   ├── index.ts                 # Re-Export aller $lib-Module
 │   │   └── components/
-│   │       ├── ui/                  # Generische Primitives (StatusBadge, Spinner, ...)
-│   │       └── layout/              # Navbar, PageLayout
+│   │       └── ui/
+│   │           └── StatusBadge.svelte
 │   └── routes/
-│       ├── +layout.svelte           # Root-Layout: Navbar + Paraglide
+│       ├── +layout.svelte           # Root-Layout: Glassmorphism-Navbar
 │       ├── +layout.ts               # export const ssr = false
-│       ├── +page.svelte             # Dashboard / Startseite
+│       ├── +page.svelte             # Dashboard: Stats-Grid + Recent-Connections
 │       ├── connections/
-│       │   └── +page.svelte         # Verbindungstabelle
-│       └── sensors/
-│           └── +page.svelte         # Sensor-Card-Grid
+│       │   └── +page.svelte         # Verbindungstabelle (expandable rows)
+│       ├── sensors/
+│       │   └── +page.svelte         # Sensor-Card-Grid (10s Live-Polling)
+│       └── rules/
+│           └── +page.svelte         # Regel-Liste
 ├── messages/
-│   ├── de.json
-│   └── en.json
+│   ├── de.json                      # Deutsche Übersetzungen
+│   └── en.json                      # Englische Übersetzungen
 ├── build/                           # Go embed.FS liest hier – gitignored
 ├── static/
 ├── svelte.config.js
-├── vite.config.ts
-├── project.inlang/
-│   └── settings.json
+├── vite.config.ts                   # Nur sveltekit() + tailwindcss() — kein Paraglide-Plugin
 └── package.json
 ```
 
@@ -394,25 +421,34 @@ internal/web/
 
 ### `/` – Dashboard
 
-- Übersicht: Sensor-Anzahl, aktive Verbindungen, Status-Verteilung (granted/denied)
-- Letzte N Verbindungen als kompakte Tabelle
+- Stats-Grid: Aktive Sensoren, Verbindungen gesamt, Granted, Denied (4 Cards)
+- Letzte 5 Verbindungen als kompakte Tabelle
+- Link „Alle anzeigen →" zu `/connections/`
+- Fallback auf Mock-Daten wenn API nicht erreichbar
 
 ### `/connections` – Verbindungstabelle
 
 Daten von `GET /api/v1/connection`:
 
-- Hauptspalten: Zeitstempel (`last`), Client-IP, Server-IP, Service, Status-Badge, Count
-- Progressive Disclosure:
-  - Hover/Tooltip: vollständige `DeviceInfo` (DNS, Vendor, Geo)
-  - Klick auf Zeile: Detail-Panel (Slide-in oder Expand) mit allen Feldern
-- Zeitstempel: `first`/`last` sind Unix-Millisekunden → `new Date(ts).toLocaleString()`
+- Hauptspalten: Client-IP, Server-IP, Service, Status-Badge, Count, Last-Seen
+- Progressive Disclosure: Klick auf Zeile expandiert Detail-Panel mit Client- und Server-DeviceInfos
+- Leerer State mit Icon + Text
 
 ### `/sensors` – Sensor-Übersicht
 
 Daten von `GET /api/v1/sensor`:
 
 - Card-Grid (responsive: 1/2/3 Spalten)
-- Pro Card: Name, Typ, Event-Counter mit Live-Refresh (Polling alle 10s via `$effect`)
+- Pro Card: Sensor-Name, Typ, Event-Counter mit Icons
+- Live-Polling alle 10s via `setInterval` (aufgeräumt in `onDestroy`-Return)
+- Live-Indikator-Badge
+
+### `/rules` – Log-Matcher-Regeln
+
+Daten von `GET /api/v1/rules/lmi`:
+
+- Liste von Regel-Indizes mit FileCode-Icon
+- Leerer State
 
 ---
 
@@ -420,10 +456,12 @@ Daten von `GET /api/v1/sensor`:
 
 - **Keine Monster-Komponenten** – jede Komponente hat eine einzige Verantwortung
 - **Kein direktes `fetch` in Komponenten** – immer `$lib/api.ts` nutzen
-- **Alle Interfaces in `$lib/types.ts`** – Go-Structs 1:1 abbilden, JSON-Feldnamen beibehalten
+- **Alle Interfaces in `$lib/types.ts`** – Go-Structs 1:1 abbilden, snake_case JSON-Feldnamen beibehalten
 - **`$lib/`-Alias** – niemals relative `../../`-Imports
 - **`ssr = false`** im Root-`+layout.ts` – kein SSR, reine SPA
 - **`npm`** – das Makefile nutzt `npm`, kein pnpm oder yarn einführen
+- **i18n-Texte in `messages/*.json`** – werden sowohl von `$lib/i18n.ts` (client) als auch `web.go` (server) gelesen
+- **`web.go` NICHT löschen** – es enthält die `embed.FS`-Direktiven und serverseitige i18n-Logik
 
 ---
 
@@ -438,21 +476,23 @@ Daten von `GET /api/v1/sensor`:
 | `pages: 'dist'` im Adapter                   | `pages: 'build'` (Go erwartet `internal/web/build`) |
 | `tailwind.config.js` erstellen               | Konfiguration via `@theme` in `app.css`             |
 | `<style>` in Svelte-Komponenten              | Ausschließlich Tailwind-Klassen im Template         |
-| Hardcodierte Texte im Template               | Immer `m.message_key()` aus Paraglide               |
+| Hardcodierte Texte im Template               | Immer `m.key()` aus `$lib/i18n.js`                  |
 | `fetch('/api/v1/...')` direkt in Komponente  | `api.connections()` aus `$lib/api.ts`               |
-| `src/paraglide/` editieren                   | Generierter Code – nur `messages/*.json` editieren  |
+| `web.go` löschen bei Cleanup                 | `web.go` ist Teil des Go-Packages – nicht löschen!  |
+| Paraglide-Plugin in vite.config.ts           | Nur `sveltekit()` + `tailwindcss()`                  |
 
 ---
 
 ## Checkliste vor jedem Commit
 
 - [ ] Kein Svelte-4-Syntax (kein `export let`, kein `$:`, kein `<slot>`)
-- [ ] Alle UI-Texte über `m.key()` aus Paraglide, Schlüssel in `de.json` + `en.json`
-- [ ] `svelte.config.js` → `adapter-static` mit `pages: 'build'`
+- [ ] Alle UI-Texte über `m.key()` aus `$lib/i18n.js`, Schlüssel in `de.json` + `en.json`
+- [ ] `svelte.config.js` → `adapter-static` mit `pages: 'build'` + `fallback: 'index.html'`
 - [ ] `src/routes/+layout.ts` exportiert `export const ssr = false`
 - [ ] Keine direkten `fetch`-Calls in Komponenten (nur `$lib/api.ts`)
 - [ ] TypeScript-Interfaces in `$lib/types.ts`, JSON-Keys unverändert (snake_case)
 - [ ] Kein `<style>`-Block in Svelte-Komponenten
-- [ ] `npm run check` ohne TypeScript-Fehler
+- [ ] `vite.config.ts` enthält KEIN Paraglide-Plugin
+- [ ] `web.go` existiert und ist nicht gelöscht
 - [ ] `npm run build` erstellt `internal/web/build/` erfolgreich
 - [ ] `make build` (vom Repo-Root) läuft durch (Go + Frontend zusammen)

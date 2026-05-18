@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+	--color-accent-primary: var(--color-indigo-400);
+	--color-accent-secondary: var(--color-cyan-400);
+	--color-surface-950: #020617;
+	--color-surface-900: #0f172a;
+	--color-surface-800: #1e293b;
+	--color-surface-700: #334155;
+	--color-text-muted: #d6d3d1;
+	--color-text-primary: #ffffff;
+	--color-status-ok: var(--color-green-400);
+	--color-status-error: var(--color-red-400);
+	--color-status-warn: var(--color-amber-400);
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #334155 #020617;
+}
+
+body {
+	@apply bg-slate-950 text-white antialiased;
+	min-height: 100vh;
+}
+
+.glass {
+	@apply bg-slate-900/80 backdrop-blur-md border-b border-slate-700/50;
+}
+
+.card {
+	@apply bg-slate-900 border border-slate-700/50 rounded-lg;
+}
+
+.badge {
+	@apply px-2 py-0.5 rounded text-xs font-mono font-medium;
+}

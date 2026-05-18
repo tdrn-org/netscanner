@@ -1,19 +1,57 @@
 <script lang="ts">
-	import type { Pathname } from '$app/types';
+	import { page } from '$app/stores';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
-	import { locales, localizeHref } from '$lib/paraglide/runtime';
-	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import { m } from '$lib/i18n.js';
+	import type { Snippet } from 'svelte';
+	import { Activity, Wifi, Shield } from '@lucide/svelte';
 
-	let { children } = $props();
+	let { children }: { children: Snippet } = $props();
+
+	const navItems = [
+		{ href: '/', label: m.nav_dashboard(), icon: Activity },
+		{ href: '/connections/', label: m.nav_connections(), icon: Wifi },
+		{ href: '/sensors/', label: m.nav_sensors(), icon: Shield }
+	];
+
+	function isActive(path: string): boolean {
+		if (path === '/') return $page.url.pathname === '/';
+		return $page.url.pathname.startsWith(path);
+	}
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+<div class="min-h-screen bg-slate-950">
+	<!-- Navbar -->
+	<nav class="glass sticky top-0 z-50">
+		<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+			<div class="flex h-16 items-center justify-between">
+				<!-- Logo -->
+				<a href={resolve('/')} class="flex items-center gap-2.5 text-white no-underline">
+					<span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20">
+						<Activity class="h-5 w-5 text-indigo-400" />
+					</span>
+					<span class="text-lg font-semibold tracking-tight">{m.app_name()}</span>
+				</a>
 
-<div style="display:none">
-	{#each locales as locale (locale)}
-		<a href={resolve(localizeHref(page.url.pathname, { locale }) as Pathname)}>{locale}</a>
-	{/each}
+				<!-- Navigation Links -->
+				<div class="flex items-center gap-1">
+					{#each navItems as item}
+						<a
+							href={resolve(item.href)}
+							class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors {isActive(item.href)
+								? 'bg-indigo-500/10 text-indigo-400'
+								: 'text-stone-300 hover:bg-slate-800 hover:text-white'}"
+						>
+							<item.icon class="h-4 w-4" />
+							<span class="hidden sm:inline">{item.label}</span>
+						</a>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</nav>
+
+	<!-- Page Content -->
+	<main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+		{@render children()}
+	</main>
 </div>

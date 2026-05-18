@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '../app.css';
 	import { page } from '$app/stores';
 	import { resolve } from '$app/paths';
 	import { m } from '$lib/i18n.js';

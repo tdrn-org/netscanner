@@ -30,7 +30,8 @@
 	}
 
 	function formatTime(ts: number): string {
-		return new Date(ts).toLocaleString('de-DE', {
+		// Backend sends UnixMicro (µs), JS Date expects milliseconds
+		return new Date(ts / 1000).toLocaleString('de-DE', {
 			day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
 		});
 	}

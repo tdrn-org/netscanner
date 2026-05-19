@@ -43,7 +43,23 @@ func MountStatics(server *httpserver.Instance) error {
 		return fmt.Errorf("unexpected web document structure (cause: %w)", err)
 	}
 	docs := sub.(fs.ReadDirFS)
-	docsHandler := http.FileServerFS(docs)
+	fileServer := http.FileServerFS(docs)
+	// SPA fallback: serve index.html for unmatched paths (client-side routing)
+	docsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Try serving the file first
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		f, err := docs.Open(path)
+		if err != nil {
+			// File not found — fall back to index.html for SPA routing
+			r.URL.Path = "/index.html"
+		} else {
+			f.Close()
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 	contentSecurityPolicy := &csp.ContentSecurityPolicy{
 		BaseUri:       []string{csp.SrcSelf},
 		FormAction:    []string{csp.SrcSelf, server.BaseURL().Scheme + ":"},

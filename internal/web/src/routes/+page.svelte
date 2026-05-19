@@ -37,7 +37,8 @@
 	let recentConnections = $derived(connections.slice(0, 5));
 
 	function formatTime(ts: number): string {
-		return new Date(ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+		// Backend sends UnixMicro (µs), JS Date expects milliseconds
+		return new Date(ts / 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 	}
 
 	function shortAddr(addr: string): string {

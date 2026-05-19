@@ -68,7 +68,7 @@ require (
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mmcloughlin/geohash v0.10.0
-	github.com/oschwald/maxminddb-golang/v2 v2.2.0
+	github.com/oschwald/maxminddb-golang/v2 v2.3.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
@@ -82,4 +82,4 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 )
 
-tool "github.com/swaggo/swag/cmd/swag"
+tool github.com/swaggo/swag/cmd/swag

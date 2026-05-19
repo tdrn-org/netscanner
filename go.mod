@@ -61,7 +61,7 @@ require (
 )
 
 require (
-	codeberg.org/miekg/dns v0.6.77
+	codeberg.org/miekg/dns v0.6.79
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.15.0
 	github.com/google/uuid v1.6.0 // indirect
@@ -82,4 +82,4 @@ require (
 	golang.org/x/sys v0.44.0 // indirect
 )
 
-tool "github.com/swaggo/swag/cmd/swag"
+tool github.com/swaggo/swag/cmd/swag

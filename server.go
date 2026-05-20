@@ -106,7 +106,7 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
-	err = web.MountStatics(httpServer)
+	err = web.MountStatics(httpServer, config.Server.BasePath)
 	if err != nil {
 		return err
 	}

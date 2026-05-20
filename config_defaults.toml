@@ -14,6 +14,7 @@ address = "localhost:0"
 protocol = "http"
 cert_file = ""
 key_file = ""
+base_path = ""
 public_url = ""
 trusted_proxies = [ ]
 trusted_headers = [ ]

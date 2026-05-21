@@ -1,6 +1,7 @@
-import type { SensorInfo, DeviceInfo, ConnectionInfo } from './types.js';
+import { base } from '$app/paths';
+import type { SensorInfo, DeviceInfo, ConnectionInfo } from './types';
 
-const BASE = '/api/v1';
+const BASE = `${base}/api/v1`;
 
 async function get<T>(path: string): Promise<T> {
 	const res = await fetch(`${BASE}${path}`);

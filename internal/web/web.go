@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -37,7 +38,7 @@ var buildFS embed.FS
 //go:embed all:messages/*
 var messagesFS embed.FS
 
-func MountStatics(server *httpserver.Instance) error {
+func MountStatics(server *httpserver.Instance, publicURL *url.URL) error {
 	sub, err := fs.Sub(buildFS, "build")
 	if err != nil {
 		return fmt.Errorf("unexpected web document structure (cause: %w)", err)
@@ -76,7 +77,25 @@ func MountStatics(server *httpserver.Instance) error {
 		return fmt.Errorf("failed to generate csp hashes (cause: %w)", err)
 	}
 	cacheControl := httpserver.StaticHeader("Cache-Control", "public, max-age=86400, immutable")
-	server.Handle("/", httpserver.HeaderHandler(docsHandler, contentSecurityPolicy.Header(), cacheControl))
+
+	// Derive base path from public URL
+	basePath := ""
+	if publicURL != nil {
+		basePath = publicURL.Path
+	}
+	// Normalize base path: ensure leading slash, no trailing slash
+	if basePath == "" {
+		basePath = "/"
+	} else {
+		basePath = "/" + strings.Trim(basePath, "/")
+	}
+
+	var handler http.Handler = docsHandler
+	if basePath != "/" {
+		handler = http.StripPrefix(basePath, docsHandler)
+	}
+
+	server.Handle(basePath+"/", httpserver.HeaderHandler(handler, contentSecurityPolicy.Header(), cacheControl))
 	return nil
 }
 

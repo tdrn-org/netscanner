@@ -98,6 +98,7 @@ type ServerConfig struct {
 	Protocol           ServerProtocol `toml:"protocol"`
 	CertFile           string         `toml:"cert_file"`
 	KeyFile            string         `toml:"key_file"`
+	BasePath           string         `toml:"base_path"`
 	PublicURL          URLSpec        `toml:"public_url"`
 	TrustedProxies     NetworkSpecs   `toml:"trusted_proxies"`
 	TrustedHeaders     []string       `toml:"trusted_headers"`

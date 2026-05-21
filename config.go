@@ -22,31 +22,12 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"net/netip"
-	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
-	"regexp"
 	"slices"
-	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/rs/cors"
-	"github.com/tdrn-org/go-conf/service/loglevel"
-	"github.com/tdrn-org/go-database"
-	"github.com/tdrn-org/go-database/memory"
-	"github.com/tdrn-org/go-database/postgres"
-	"github.com/tdrn-org/go-database/sqlite"
-	"github.com/tdrn-org/go-httpserver"
-	"github.com/tdrn-org/go-httpserver/certificate"
-	"github.com/tdrn-org/go-log"
-	"github.com/tdrn-org/netscanner/dns"
-	customdns "github.com/tdrn-org/netscanner/dns/custom"
-	systemdns "github.com/tdrn-org/netscanner/dns/system"
-	"github.com/tdrn-org/netscanner/geoip"
-	"github.com/tdrn-org/netscanner/geoip/maxminddb"
-	"github.com/tdrn-org/netscanner/internal/datastore/model"
+	"github.com/tdrn-org/netscanner/config"
 	"github.com/tdrn-org/netscanner/sensor/accesslog"
 	"github.com/tdrn-org/netscanner/sensor/logfile"
 	"github.com/tdrn-org/netscanner/sensor/syslog"
@@ -61,134 +42,6 @@ type Config struct {
 	ARPCache  ARPCacheConfig  `toml:"arp_cache"`
 	DNS       DNSConfig       `toml:"dns"`
 	GeoIP     GeoIPConfig     `toml:"geoip"`
-}
-
-type LoggingConfig struct {
-	Level          LogLevel  `toml:"level"`
-	Target         LogTarget `toml:"target"`
-	Color          LogColor  `toml:"color"`
-	FileName       string    `toml:"file_name"`
-	FileSizeLimit  int64     `toml:"file_size_limit"`
-	SyslogNetwork  string    `toml:"syslog_network"`
-	SyslogAddress  string    `toml:"syslog_address"`
-	SyslogEncoding string    `toml:"syslog_encoding"`
-	SyslogFacility int       `toml:"syslog_facility"`
-}
-
-func (c *LoggingConfig) apply() {
-	logConfig := &log.Config{
-		Level:          c.Level.Value(),
-		AddSource:      false,
-		Target:         log.Target(c.Target),
-		Color:          log.Color(c.Color),
-		FileName:       c.FileName,
-		FileSizeLimit:  c.FileSizeLimit,
-		SyslogNetwork:  c.SyslogNetwork,
-		SyslogAddress:  c.SyslogAddress,
-		SyslogEncoding: c.SyslogEncoding,
-		SyslogFacility: c.SyslogFacility,
-		SyslogAppName:  reflect.TypeFor[Server]().PkgPath(),
-	}
-	logger, _ := logConfig.GetLogger(loglevel.LevelVar())
-	slog.SetDefault(logger)
-}
-
-type ServerConfig struct {
-	Address            string         `toml:"address"`
-	Protocol           ServerProtocol `toml:"protocol"`
-	CertFile           string         `toml:"cert_file"`
-	KeyFile            string         `toml:"key_file"`
-	PublicURL          URLSpec        `toml:"public_url"`
-	TrustedProxies     NetworkSpecs   `toml:"trusted_proxies"`
-	TrustedHeaders     []string       `toml:"trusted_headers"`
-	AllowedOrigins     []string       `toml:"allowed_origins"`
-	AccessLog          string         `toml:"access_log"`
-	AccessLogSizeLimit int64          `toml:"access_log_size_limit"`
-}
-
-func (c *ServerConfig) httpServerOptions() []httpserver.OptionSetter {
-	httpServerOptions := make([]httpserver.OptionSetter, 0)
-	// TLS
-	if c.Protocol == ServerProtocolHttps {
-		certificateProvider := &certificate.FileCertificateProvider{
-			CertFile: c.CertFile,
-			KeyFile:  c.KeyFile,
-		}
-		httpServerOptions = append(httpServerOptions, httpserver.WithCertificateProvider(certificateProvider))
-	}
-	// Proxy configuration
-	if len(c.TrustedProxies) > 0 {
-		httpServerOptions = append(httpServerOptions, httpserver.WithTrustedProxyPolicy(httpserver.AllowNetworks("trusted proxies", c.TrustedProxies.Prefixes())))
-	}
-	if len(c.TrustedHeaders) > 0 {
-		httpServerOptions = append(httpServerOptions, httpserver.WithTrustedHeaders(c.TrustedHeaders...))
-	}
-	// CORS
-	if len(c.AllowedOrigins) > 0 {
-		corsOptions := &cors.Options{
-			AllowedOrigins: c.AllowedOrigins,
-		}
-		httpServerOptions = append(httpServerOptions, httpserver.WithCorsOptions(corsOptions))
-	}
-	// Access log
-	var accessLogConfig *log.Config
-	switch c.AccessLog {
-	case "stdout":
-		accessLogConfig = &log.Config{
-			Target: log.TargetStdout,
-		}
-	case "stderr":
-		accessLogConfig = &log.Config{
-			Target: log.TargetStderr,
-		}
-	case "":
-		// disable Access log
-	default:
-		accessLogConfig = &log.Config{
-			Target:        log.TargetFileText,
-			FileName:      c.AccessLog,
-			FileSizeLimit: c.AccessLogSizeLimit,
-		}
-	}
-	if accessLogConfig != nil {
-		accessLogLogger := slog.New(log.NewRawHandler(accessLogConfig.GetWriter()))
-		httpServerOptions = append(httpServerOptions, httpserver.WithAccessLog(accessLogLogger))
-	}
-	return httpServerOptions
-}
-
-type DatastoreConfig struct {
-	DatabaseType DatabaseType `toml:"type"`
-	MemoryConfig struct {     /* no parameters */
-	} `toml:"memory"`
-	SQLiteConfig struct {
-		File string `toml:"file"`
-	} `toml:"sqlite"`
-	PostgresConfig struct {
-		Address  string `toml:"address"`
-		DBName   string `toml:"db"`
-		User     string `toml:"user"`
-		Password string `toml:"password"`
-	} `toml:"postgres"`
-}
-
-func (c *DatastoreConfig) config() (database.Config, error) {
-	switch c.DatabaseType {
-	case DatabaseType(memory.Type):
-		return memory.NewConfig(model.SqliteSchemaScriptOption), nil
-	case DatabaseType(sqlite.Type):
-		return sqlite.NewConfig(c.SQLiteConfig.File, sqlite.ModeRWC, model.SqliteSchemaScriptOption), nil
-	case DatabaseType(postgres.Type):
-		return postgres.NewConfig(c.PostgresConfig.DBName, c.PostgresConfig.User, c.PostgresConfig.Password, postgres.WithAddress(c.PostgresConfig.Address), model.PostgresSchemaScriptOption)
-	}
-	return nil, fmt.Errorf("unrecognized datastore type '%s'", c.DatabaseType)
-}
-
-type MetricsConfig struct {
-	Enabled bool   `toml:"enabled"`
-	Path    string `toml:"path"`
-	Process bool   `toml:"process"`
-	Sensors bool   `toml:"sensors"`
 }
 
 type SensorsConfig struct {
@@ -301,11 +154,11 @@ type LogfileSensorConfig struct {
 	Path            string `toml:"path"`
 	LogMatcherIndex string `toml:"log_matcher_index"`
 	Regexp          struct {
-		Pattern         RegexpSpec `toml:"pattern"`
-		TimestampField  int        `toml:"timestamp_field"`
-		TimestampLayout string     `toml:"timestamp_layout"`
-		HostField       int        `toml:"host_field"`
-		MessageField    int        `toml:"message_field"`
+		Pattern         config.RegexpSpec `toml:"pattern"`
+		TimestampField  int               `toml:"timestamp_field"`
+		TimestampLayout string            `toml:"timestamp_layout"`
+		HostField       int               `toml:"host_field"`
+		MessageField    int               `toml:"message_field"`
 	} `toml:"regexp"`
 }
 
@@ -329,12 +182,12 @@ type AccesslogSensorConfig struct {
 	Path     string      `toml:"path"`
 	Encoding LogEncoding `toml:"encoding"`
 	Regexp   struct {
-		Pattern         RegexpSpec `toml:"pattern"`
-		TimestampField  int        `toml:"timestamp_field"`
-		TimestampLayout string     `toml:"timestamp_layout"`
-		StatusField     int        `toml:"status_field"`
-		AddressField    int        `toml:"address_field"`
-		UserField       int        `toml:"user_field"`
+		Pattern         config.RegexpSpec `toml:"pattern"`
+		TimestampField  int               `toml:"timestamp_field"`
+		TimestampLayout string            `toml:"timestamp_layout"`
+		StatusField     int               `toml:"status_field"`
+		AddressField    int               `toml:"address_field"`
+		UserField       int               `toml:"user_field"`
 	} `toml:"regexp"`
 	JSON struct {
 		TimestampField  []string `toml:"timestamp_field"`
@@ -369,95 +222,6 @@ func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
 		AddressField:    c.JSON.AddressField,
 		UserField:       c.JSON.UserField,
 		Tail:            true, // for now we default to true (accept misses; before duplicates)
-	}
-}
-
-type ARPCacheConfig struct {
-	TTL DurationSpec `toml:"ttl"`
-}
-
-type DNSConfig struct {
-	Provider  DNSProvider     `toml:"provider"`
-	Domains   []string        `toml:"domains"`
-	SystemDNS SystemDNSConfig `toml:"system"`
-	CustomDNS CustomDNSConfig `toml:"custom"`
-}
-
-func (c *DNSConfig) config() dns.ProviderConfig {
-	switch c.Provider {
-	case DNSProvider(systemdns.ProviderName):
-		return c.SystemDNS.config()
-	case DNSProvider(customdns.ProviderName):
-		return c.CustomDNS.config()
-	}
-	slog.Warn("unexpected DNS provider", slog.String("provider", string(c.Provider)))
-	return nil
-}
-
-type SystemDNSConfig struct {
-	// no options
-}
-
-func (c *SystemDNSConfig) config() *systemdns.Config {
-	return &systemdns.Config{}
-}
-
-type CustomDNSConfig struct {
-	Network string `toml:"network"`
-	Address string `toml:"address"`
-}
-
-func (c *CustomDNSConfig) config() *customdns.Config {
-	return &customdns.Config{
-		Network: c.Network,
-		Address: c.Address,
-	}
-}
-
-type GeoIPConfig struct {
-	Provider            GeoIPProvider `toml:"provider"`
-	AddressURLTemplate  string        `toml:"address_url_template"`
-	LocationURLTemplate string        `toml:"location_url_template"`
-	Mappings            []struct {
-		Networks NetworkSpecs `toml:"networks"`
-		Host     string       `toml:"host"`
-	} `toml:"mapping"`
-	None      NoneGeoIPConfig      `toml:"none"`
-	MaxMindDB MaxmindDBGeoIPConfig `toml:"maxminddb"`
-}
-
-func (c *GeoIPConfig) config() (geoip.ProviderConfig, map[netip.Prefix]string) {
-	geoipMapping := make(map[netip.Prefix]string, 0)
-	for _, configMapping := range c.Mappings {
-		for _, network := range configMapping.Networks.Prefixes() {
-			geoipMapping[network] = configMapping.Host
-		}
-	}
-	switch c.Provider {
-	case GeoIPProvider(geoip.NoneProviderName):
-		return c.None.config(), geoipMapping
-	case GeoIPProvider(maxminddb.ProviderName):
-		return c.MaxMindDB.config(), geoipMapping
-	}
-	slog.Warn("unexpected GeoIP provider", slog.String("provider", string(c.Provider)))
-	return nil, nil
-}
-
-type NoneGeoIPConfig struct {
-	// no options
-}
-
-func (c *NoneGeoIPConfig) config() *geoip.None {
-	return &geoip.None{}
-}
-
-type MaxmindDBGeoIPConfig struct {
-	File string `toml:"file"`
-}
-
-func (c *MaxmindDBGeoIPConfig) config() *maxminddb.Config {
-	return &maxminddb.Config{
-		File: c.File,
 	}
 }
 
@@ -511,192 +275,6 @@ func loadRootConfig(file string, strict bool) (*Config, error) {
 	return config, nil
 }
 
-type LogLevel slog.Level
-
-var knownLogLevels map[string]LogLevel = map[string]LogLevel{
-	"debug": LogLevel(slog.LevelDebug),
-	"info":  LogLevel(slog.LevelInfo),
-	"warn":  LogLevel(slog.LevelWarn),
-	"error": LogLevel(slog.LevelError),
-}
-
-func (l *LogLevel) Value() string {
-	for value, level := range knownLogLevels {
-		if *l == level {
-			return value
-		}
-	}
-	slog.Warn("unexpected log level", slog.Any("l", *l))
-	return ""
-}
-
-func (l *LogLevel) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + l.Value() + `"`), nil
-}
-
-func (l *LogLevel) UnmarshalTOML(value any) error {
-	levelString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected log level type %v", value)
-	}
-	level, ok := knownLogLevels[levelString]
-	if !ok {
-		return fmt.Errorf("unknown log level: '%s'", levelString)
-	}
-	*l = level
-	return nil
-}
-
-type LogTarget log.Target
-
-var knownLogTargets map[string]LogTarget = map[string]LogTarget{
-	string(log.TargetStdout):     LogTarget(log.TargetStdout),
-	string(log.TargetStdoutText): LogTarget(log.TargetStdoutText),
-	string(log.TargetStdoutJSON): LogTarget(log.TargetStdoutJSON),
-	string(log.TargetStderr):     LogTarget(log.TargetStderr),
-	string(log.TargetStderrText): LogTarget(log.TargetStderrText),
-	string(log.TargetStderrJSON): LogTarget(log.TargetStderrJSON),
-	string(log.TargetFileText):   LogTarget(log.TargetFileText),
-	string(log.TargetFileJSON):   LogTarget(log.TargetFileJSON),
-	string(log.TargetSyslog):     LogTarget(log.TargetSyslog),
-}
-
-func (t *LogTarget) Value() string {
-	for value, target := range knownLogTargets {
-		if *t == target {
-			return value
-		}
-	}
-	slog.Warn("unexpected log target", slog.Any("t", *t))
-	return ""
-}
-
-func (t *LogTarget) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + t.Value() + `"`), nil
-}
-
-func (t *LogTarget) UnmarshalTOML(value any) error {
-	targetString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected log target type %v", value)
-	}
-	target, ok := knownLogTargets[targetString]
-	if !ok {
-		return fmt.Errorf("unknown log target: '%s'", targetString)
-	}
-	*t = target
-	return nil
-}
-
-type LogColor log.Color
-
-var knownLogColors map[string]LogColor = map[string]LogColor{
-	"auto": LogColor(log.ColorAuto),
-	"off":  LogColor(log.ColorOff),
-	"on":   LogColor(log.ColorOn),
-}
-
-func (c *LogColor) Value() string {
-	for value, color := range knownLogColors {
-		if *c == color {
-			return value
-		}
-	}
-	slog.Warn("unexpected log color", slog.Any("c", *c))
-	return ""
-}
-
-func (c *LogColor) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + c.Value() + `"`), nil
-}
-
-func (c *LogColor) UnmarshalTOML(value any) error {
-	colorString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected log color type %v", value)
-	}
-	color, ok := knownLogColors[colorString]
-	if !ok {
-		return fmt.Errorf("unknown log color: '%s'", colorString)
-	}
-	*c = color
-	return nil
-}
-
-type ServerProtocol string
-
-const (
-	ServerProtocolHttp  ServerProtocol = "http"
-	ServerProtocolHttps ServerProtocol = "https"
-)
-
-var knownServerProtocols map[string]ServerProtocol = map[string]ServerProtocol{
-	string(ServerProtocolHttp):  ServerProtocolHttp,
-	string(ServerProtocolHttps): ServerProtocolHttps,
-}
-
-func (p *ServerProtocol) Value() string {
-	for value, protocol := range knownServerProtocols {
-		if *p == protocol {
-			return value
-		}
-	}
-	slog.Warn("unexpected server protocol", slog.Any("p", *p))
-	return ""
-}
-
-func (p *ServerProtocol) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + p.Value() + `"`), nil
-}
-
-func (p *ServerProtocol) UnmarshalTOML(value any) error {
-	protocolString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected server protocol type %v", value)
-	}
-	protocol, ok := knownServerProtocols[protocolString]
-	if !ok {
-		return fmt.Errorf("unknown log target: '%s'", protocolString)
-	}
-	*p = protocol
-	return nil
-}
-
-type DatabaseType database.Type
-
-var knownDatabaseTypes map[string]DatabaseType = map[string]DatabaseType{
-	string(memory.Type):   DatabaseType(memory.Type),
-	string(sqlite.Type):   DatabaseType(sqlite.Type),
-	string(postgres.Type): DatabaseType(postgres.Type),
-}
-
-func (t *DatabaseType) Value() string {
-	for value, databaseType := range knownDatabaseTypes {
-		if *t == databaseType {
-			return value
-		}
-	}
-	slog.Warn("unexpected database type", slog.Any("t", *t))
-	return ""
-}
-
-func (t *DatabaseType) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + t.Value() + `"`), nil
-}
-
-func (t *DatabaseType) UnmarshalTOML(value any) error {
-	databaseTypeString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected database type type %v", value)
-	}
-	databaseType, ok := knownDatabaseTypes[databaseTypeString]
-	if !ok {
-		return fmt.Errorf("unknown database type: '%s'", databaseTypeString)
-	}
-	*t = databaseType
-	return nil
-}
-
 type SyslogNetwork string
 
 var knownSyslogNetworks map[string]SyslogNetwork = map[string]SyslogNetwork{
@@ -738,74 +316,6 @@ func (n *SyslogNetwork) UnmarshalTOML(value any) error {
 	return nil
 }
 
-type DNSProvider dns.ProviderName
-
-var knownDNSProviders map[string]DNSProvider = map[string]DNSProvider{
-	string(systemdns.ProviderName): DNSProvider(systemdns.ProviderName),
-	string(customdns.ProviderName): DNSProvider(customdns.ProviderName),
-}
-
-func (p *DNSProvider) Value() string {
-	for value, dnsProvider := range knownDNSProviders {
-		if *p == dnsProvider {
-			return value
-		}
-	}
-	slog.Warn("unexpected DNS provider", slog.Any("p", *p))
-	return ""
-}
-
-func (p *DNSProvider) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + p.Value() + `"`), nil
-}
-
-func (p *DNSProvider) UnmarshalTOML(value any) error {
-	dnsProviderString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected DNS provider type %v", value)
-	}
-	dnsProvider, ok := knownDNSProviders[dnsProviderString]
-	if !ok {
-		return fmt.Errorf("unknown DNS provider: '%s'", dnsProviderString)
-	}
-	*p = dnsProvider
-	return nil
-}
-
-type GeoIPProvider geoip.ProviderName
-
-var knownGeoIPProviders map[string]GeoIPProvider = map[string]GeoIPProvider{
-	string(geoip.NoneProviderName): GeoIPProvider(geoip.NoneProviderName),
-	string(maxminddb.ProviderName): GeoIPProvider(maxminddb.ProviderName),
-}
-
-func (p *GeoIPProvider) Value() string {
-	for value, geoipProvider := range knownGeoIPProviders {
-		if *p == geoipProvider {
-			return value
-		}
-	}
-	slog.Warn("unexpected GeoIP provider", slog.Any("p", *p))
-	return ""
-}
-
-func (p *GeoIPProvider) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + p.Value() + `"`), nil
-}
-
-func (p *GeoIPProvider) UnmarshalTOML(value any) error {
-	geoipProviderString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected GeoIP provider type %v", value)
-	}
-	geoipProvider, ok := knownGeoIPProviders[geoipProviderString]
-	if !ok {
-		return fmt.Errorf("unknown GeoIP provider: '%s'", geoipProviderString)
-	}
-	*p = geoipProvider
-	return nil
-}
-
 type LogEncoding string
 
 const (
@@ -842,135 +352,5 @@ func (e *LogEncoding) UnmarshalTOML(value any) error {
 		return fmt.Errorf("unknown Log encoding: '%s'", logEncodingString)
 	}
 	*e = logEncoding
-	return nil
-}
-
-type DurationSpec time.Duration
-
-func (spec *DurationSpec) Value() string {
-	return time.Duration(*spec).String()
-}
-
-func (spec *DurationSpec) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + spec.Value() + `"`), nil
-}
-
-func (spec *DurationSpec) UnmarshalTOML(value any) error {
-	durationString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected duration type %v", value)
-	}
-	parsedDuration, err := time.ParseDuration(durationString)
-	if err != nil {
-		return fmt.Errorf("invalid duration: '%s' (cause: %w)", durationString, err)
-	}
-	*spec = DurationSpec(parsedDuration)
-	return nil
-}
-
-type URLSpec struct {
-	*url.URL
-}
-
-func (spec *URLSpec) Value() string {
-	if spec.URL == nil {
-		return ""
-	}
-	return spec.String()
-}
-
-func (spec *URLSpec) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + spec.Value() + `"`), nil
-}
-
-func (spec *URLSpec) UnmarshalTOML(value any) error {
-	urlString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected URL type %v", value)
-	}
-	if urlString == "" {
-		return nil
-	}
-	parsedURL, err := url.Parse(urlString)
-	if err != nil {
-		return fmt.Errorf("invalid URL: '%s' (cause: %w)", urlString, err)
-	}
-	spec.URL = parsedURL
-	return nil
-}
-
-type URLSpecs []URLSpec
-
-func (specs URLSpecs) URLs() []*url.URL {
-	urls := make([]*url.URL, 0, len(specs))
-	for _, spec := range specs {
-		urls = append(urls, spec.URL)
-	}
-	return urls
-}
-
-type NetworkSpec struct {
-	netip.Prefix
-}
-
-func (spec *NetworkSpec) Value() string {
-	return spec.String()
-}
-
-func (spec *NetworkSpec) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + spec.String() + `"`), nil
-}
-
-func (spec *NetworkSpec) UnmarshalTOML(value any) error {
-	networkString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected network type %v", value)
-	}
-	parsedNetwork, err := netip.ParsePrefix(networkString)
-	if err != nil {
-		return fmt.Errorf("invalid network: '%s' (cause: %w)", networkString, err)
-	}
-	spec.Prefix = parsedNetwork
-	return nil
-}
-
-type NetworkSpecs []NetworkSpec
-
-func (specs NetworkSpecs) Prefixes() []netip.Prefix {
-	networks := make([]netip.Prefix, 0, len(specs))
-	for _, spec := range specs {
-		networks = append(networks, spec.Prefix)
-	}
-	return networks
-}
-
-type RegexpSpec struct {
-	*regexp.Regexp
-}
-
-func (spec *RegexpSpec) Value() string {
-	if spec.Regexp == nil {
-		return ""
-	}
-	return spec.String()
-}
-
-func (spec *RegexpSpec) MarshalTOML() ([]byte, error) {
-	return []byte(`"` + spec.Value() + `"`), nil
-}
-
-func (spec *RegexpSpec) UnmarshalTOML(value any) error {
-	regexpString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("unexpected Regexp type %v", value)
-	}
-	if regexpString == "" {
-		return nil
-	}
-	parsedRegexp, err := regexp.Compile(regexpString)
-	if err != nil {
-		return fmt.Errorf("invalid Regexp: '%s' (cause: %w)", regexpString, err)
-	}
-	spec.Regexp = parsedRegexp
 	return nil
 }

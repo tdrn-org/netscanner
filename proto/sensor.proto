@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package sensor;
+
+// Target package for generation
+option go_package = "./proto";
+
+import "google/protobuf/timestamp.proto";
+
+enum EventType {
+    EVENT_TYPE_UNSPECIFIED = 0;
+    EVENT_TYPE_INFORMATIONAL = 1;
+    EVENT_TYPE_GRANTED = 2;
+    EVENT_TYPE_DENIED = 3;
+    EVENT_TYPE_ERROR = 4;
+}
+
+message Event {
+    string host = 1;
+    google.protobuf.Timestamp timestamp = 2;
+    EventType type = 3;
+    bytes address = 4; 
+    bytes hardware_address = 5; 
+    string user = 6;
+    string service = 7;
+    string sensor = 8;
+}
+
+service EventStreamer {
+    rpc SendEvent (Event) returns (EmptyResponse);
+}
+
+message EmptyResponse {}

@@ -40,6 +40,7 @@ import (
 	"github.com/tdrn-org/netscanner/internal/datastore"
 	"github.com/tdrn-org/netscanner/internal/device"
 	"github.com/tdrn-org/netscanner/internal/metrics"
+	eventsync "github.com/tdrn-org/netscanner/internal/sync"
 	"github.com/tdrn-org/netscanner/internal/web"
 	"github.com/tdrn-org/netscanner/logmatcher"
 	"github.com/tdrn-org/netscanner/network"
@@ -55,6 +56,7 @@ type Server struct {
 	arpCache        *arp.Cache
 	dnsProvider     dns.Provider
 	deviceInfos     *device.InfoCache
+	syncHandler     eventsync.Handler
 	defaultHost     string
 	sensors         map[string]*sensor.Sensor
 	logMatchers     map[string]*logmatcher.Index
@@ -79,6 +81,7 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 		s.startARPCache,
 		s.startDNSProvider,
 		s.startInfoCache,
+		s.startSync,
 		s.startSensors,
 	}
 	for _, startFunc := range startFuncs {
@@ -221,6 +224,44 @@ func (s *Server) closeInfoCache() error {
 	return s.deviceInfos.Close()
 }
 
+func (s *Server) startSync(ctx context.Context, config *Config) error {
+	if config.Sync.Mode == SyncModeDisabled {
+		return nil
+	}
+	credentials, err := config.Sync.loadCredentials()
+	if err != nil {
+		return err
+	}
+	var syncHandler eventsync.Handler
+	switch config.Sync.Mode {
+	case SyncModeForward:
+		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials)
+	case SyncModeReceive:
+		syncHandler, err = eventsync.StartForward(config.Sync.Address, credentials)
+	default:
+		return fmt.Errorf("unrecognized sync mode '%s'", config.Sync.Mode)
+	}
+	if err != nil {
+		return err
+	}
+	s.syncHandler = syncHandler
+	return nil
+}
+
+func (s *Server) shutdownSync(ctx context.Context) error {
+	if s.syncHandler == nil {
+		return nil
+	}
+	return s.syncHandler.Shutdown(ctx)
+}
+
+func (s *Server) closeSync() error {
+	if s.syncHandler == nil {
+		return nil
+	}
+	return s.syncHandler.Close()
+}
+
 func (s *Server) startSensors(ctx context.Context, config *Config) error {
 	s.defaultHost = strings.TrimSpace(config.Sensors.DefaultHost)
 	if s.defaultHost == "" {
@@ -310,6 +351,7 @@ func (s *Server) Stop(ctx context.Context) error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	shutdownFuncs := []func(ctx context.Context) error{
 		s.shutdownSensors,
+		s.shutdownSync,
 		s.shutdownHttpServer,
 	}
 	shutdownErrs := make([]error, 0, len(shutdownFuncs))
@@ -325,6 +367,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) Close() error {
 	closeFuncs := []func() error{
 		s.closeSensors,
+		s.closeSync,
 		s.closeInfoCache,
 		s.closeHttpServer,
 		s.closeDatastore,

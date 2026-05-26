@@ -37,6 +37,7 @@ type Config struct {
 	Logging   LoggingConfig   `toml:"logging"`
 	Server    ServerConfig    `toml:"server"`
 	Datastore DatastoreConfig `toml:"datastore"`
+	Sync      SyncConfig      `toml:"sync"`
 	Metrics   MetricsConfig   `toml:"metrics"`
 	Sensors   SensorsConfig   `toml:"sensors"`
 	ARPCache  ARPCacheConfig  `toml:"arp_cache"`

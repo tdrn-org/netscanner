@@ -22,7 +22,7 @@ access_log = ""
 access_log_size_limit = 0
 
 [datastore]
-type="memory"
+type = "memory"
 
 [datastore.memory]
 
@@ -34,6 +34,13 @@ address = "localhost:5432"
 db = "netscanner"
 user = "netscanner"
 password = ""
+
+[sync]
+mode = "disabled"
+address = ":50051"
+crt_file = "./node.crt"
+key_file = "./node.key"
+ca_file = "./ca.crt"
 
 [metrics]
 enabled = false

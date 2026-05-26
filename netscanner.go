@@ -22,14 +22,18 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/tdrn-org/go-diff"
+	"github.com/tdrn-org/go-log"
 	"github.com/tdrn-org/netscanner/internal/buildinfo"
+	"github.com/tdrn-org/netscanner/mtls"
 )
 
 func RunArgs(ctx context.Context, args []string) error {
@@ -51,17 +55,22 @@ var cmdLineHelpOptions = kong.ConfigureHelp(kong.HelpOptions{
 })
 
 var cmdLineVars = kong.Vars{
-	"config_default": DefaultConfigPath(),
+	"config_default":   DefaultConfigPath(),
+	"on_default":       "local",
+	"cn_default":       "localhost",
+	"validity_default": "8760h", // 1 year
 }
 
 type cmdLine struct {
-	Silent      bool        `short:"s" help:"Enable silent mode (log level error)"`
-	Quiet       bool        `short:"q" help:"Enable quiet mode (log level warn)"`
-	Verbose     bool        `short:"v" help:"Enable verbose output (log level info)"`
-	Debug       bool        `short:"d" help:"Enable debug output (log level debug)"`
-	RunCmd      runCmd      `cmd:"" name:"run" default:"withargs" help:"Run server"`
-	VersionCmd  versionCmd  `cmd:"" name:"version" help:"Show version info"`
-	TemplateCmd templateCmd `cmd:"" name:"template" help:"Output config template"`
+	Silent        bool          `short:"s" help:"Enable silent mode (log level error)"`
+	Quiet         bool          `short:"q" help:"Enable quiet mode (log level warn)"`
+	Verbose       bool          `short:"v" help:"Enable verbose output (log level info)"`
+	Debug         bool          `short:"d" help:"Enable debug output (log level debug)"`
+	RunCmd        runCmd        `cmd:"" name:"run" default:"withargs" help:"Run server"`
+	VersionCmd    versionCmd    `cmd:"" name:"version" help:"Show version info"`
+	TemplateCmd   templateCmd   `cmd:"" name:"template" help:"Output config template"`
+	GenTLSCACmd   genTLSCACmd   `cmd:"" name:"generate-tls-ca" help:"Generate CA certificate for mtls based sync"`
+	GenTLSNodeCmd genTLSNodeCmd `cmd:"" name:"generate-tls-node" help:"Generate Node certificate for mtls based sync"`
 }
 
 type runCmd struct {
@@ -166,5 +175,89 @@ func (cmd *templateCmd) Run(_ context.Context, args *cmdLine) error {
 		}
 		diff.NewPrinter(os.Stdout, printerOptions...).Print(diffResult)
 	}
+	return nil
+}
+
+func defaultON() string {
+	return "local"
+}
+
+type genTLSCACmd struct {
+	ON       string        `help:"The organization name to use" default:"${on_default}"`
+	Validity time.Duration `help:"The validity time range of the CA certificate" default:"${validity_default}"`
+	CRTFile  string        `name:"crt-file" help:"The path/name of the CA certificate file to write"`
+	KeyFile  string        `name:"key-file" help:"The path/name of the CA key file to write"`
+	Force    bool          `short:"f" help:"Force overwrite of existing files"`
+}
+
+func (cmd *genTLSCACmd) Run(_ context.Context, args *cmdLine) error {
+	logger := slog.Default()
+	log.Notice(logger, "Generating CA certificate")
+	if cmd.Force {
+		logger.Warn("Overriding any existing file")
+	}
+	log.Notice(logger, fmt.Sprintf("CRT file    : '%s'", cmd.CRTFile))
+	log.Notice(logger, fmt.Sprintf("Organization: '%s'", cmd.ON))
+	log.Notice(logger, fmt.Sprintf("Validity    : %s", cmd.Validity.String()))
+	options := &mtls.CAOptions{
+		CommonOptions: mtls.CommonOptions{
+			ON:       cmd.ON,
+			Validity: cmd.Validity,
+		},
+	}
+	credentials, err := options.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate CA certificate/key (cause: %w)", err)
+	}
+	log.Notice(logger, fmt.Sprintf("Expires     : %s", credentials.Certificate.NotAfter.Local().Format(time.RFC3339)))
+	err = credentials.Write(cmd.CRTFile, cmd.KeyFile, cmd.Force)
+	if err != nil {
+		return fmt.Errorf("failed to write CA files (cause: %w)", err)
+	}
+	log.Notice(logger, "CA certificate successfully generated")
+	return nil
+}
+
+type genTLSNodeCmd struct {
+	ON        string        `help:"The organization name to use" default:"${on_default}"`
+	CN        string        `help:"The common name to use" default:"${cn_default}"`
+	Validity  time.Duration `help:"The validity time range of the Node certificate" default:"${validity_default}"`
+	CRTFile   string        `name:"crt-file" help:"The path/name of the Node certificate file to write"`
+	KeyFile   string        `name:"key-file" help:"The path/name of the Node key file to write"`
+	CACRTFile string        `name:"ca-crt-file" help:"The path/name to the certificate file of the signing CA"`
+	CAKeyFile string        `name:"ca-key-file" help:"The path/name to the key file of the signing CA"`
+	Force     bool          `short:"f" help:"Force overwrite of existing files"`
+}
+
+func (cmd *genTLSNodeCmd) Run(_ context.Context, args *cmdLine) error {
+	logger := slog.Default()
+	log.Notice(logger, "Generating Node certificate")
+	if cmd.Force {
+		logger.Warn("Overriding any existing file")
+	}
+	log.Notice(logger, fmt.Sprintf("CRT file    : '%s'", cmd.CRTFile))
+	log.Notice(logger, fmt.Sprintf("Organization: '%s'", cmd.ON))
+	log.Notice(logger, fmt.Sprintf("Common name : '%s'", cmd.ON))
+	log.Notice(logger, fmt.Sprintf("Validity    : %s", cmd.Validity.String()))
+	caCredentials, err := mtls.LoadCredentials(cmd.CACRTFile, cmd.CAKeyFile, "")
+	if err != nil {
+		return fmt.Errorf("failed to load CA credentials (cause: %w)", err)
+	}
+	options := &mtls.NodeOptions{
+		CommonOptions: *mtls.InitNodeOptions(cmd.ON, cmd.CN, cmd.Validity, (net.IP).IsPrivate),
+		CA:            caCredentials,
+	}
+	credentials, err := options.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate Node certificate/key (cause: %w)", err)
+	}
+	log.Notice(logger, fmt.Sprintf("Expires     : %s", credentials.Certificate.NotAfter.Local().Format(time.RFC3339)))
+	log.Notice(logger, fmt.Sprintf("IPs         : %v", credentials.Certificate.IPAddresses))
+	log.Notice(logger, fmt.Sprintf("DNS         : %v", credentials.Certificate.DNSNames))
+	err = credentials.Write(cmd.CRTFile, cmd.KeyFile, cmd.Force)
+	if err != nil {
+		return fmt.Errorf("failed to write Node files (cause: %w)", err)
+	}
+	log.Notice(logger, "Node certificate successfully generated")
 	return nil
 }

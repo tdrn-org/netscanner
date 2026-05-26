@@ -22,17 +22,20 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/tdrn-org/netscanner/internal/sync/proto"
 	"github.com/tdrn-org/netscanner/mtls"
+	"github.com/tdrn-org/netscanner/sensor"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
 )
 
 type Handler interface {
+	sensor.EventReceiver
 	Shutdown(ctx context.Context) error
 	Close() error
 }
 
-func StartReceive(address string, credentials *mtls.Credentials) (Handler, error) {
+func StartReceive(address string, credentials *mtls.Credentials, receiver sensor.EventReceiver) (Handler, error) {
 	tlsConfig, err := credentials.TLSConfig()
 	if err != nil {
 		return nil, err
@@ -46,14 +49,18 @@ func StartReceive(address string, credentials *mtls.Credentials) (Handler, error
 	handler := &receiveHandler{
 		server:   server,
 		listener: listener,
+		receiver: receiver,
 	}
+	proto.RegisterEventStreamerServer(server, handler)
 	go handler.Serve()
 	return handler, nil
 }
 
 type receiveHandler struct {
+	proto.UnimplementedEventStreamerServer
 	server   *grpc.Server
 	listener net.Listener
+	receiver sensor.EventReceiver
 }
 
 func (h *receiveHandler) Serve() {
@@ -63,6 +70,14 @@ func (h *receiveHandler) Serve() {
 	} else if err != nil {
 
 	}
+}
+
+func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*proto.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (h *receiveHandler) Queue(ctx context.Context, event *sensor.Event) {
+
 }
 
 func (h *receiveHandler) Shutdown(ctx context.Context) error {
@@ -96,13 +111,25 @@ func StartForward(address string, credentials *mtls.Credentials) (Handler, error
 		return nil, fmt.Errorf("failed to start sync client (cause: %w)", err)
 	}
 	handler := &forwardHandler{
-		conn: conn,
+		conn:   conn,
+		client: proto.NewEventStreamerClient(conn),
 	}
 	return handler, nil
 }
 
 type forwardHandler struct {
-	conn *grpc.ClientConn
+	conn   *grpc.ClientConn
+	client proto.EventStreamerClient
+}
+
+func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
+	req := &proto.Event{
+		Host: event.Host,
+	}
+	_, err := h.client.SendEvent(ctx, req)
+	if err != nil {
+
+	}
 }
 
 func (h *forwardHandler) Shutdown(_ context.Context) error {

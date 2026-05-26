@@ -73,6 +73,9 @@ func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
 	}
 	s.recordEventInfos(ctx, event)
 	s.recordEvent(ctx, event)
+	if s.syncHandler != nil {
+		s.syncHandler.Queue(ctx, event)
+	}
 }
 
 func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {

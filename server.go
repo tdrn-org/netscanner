@@ -235,7 +235,7 @@ func (s *Server) startSync(ctx context.Context, config *Config) error {
 	var syncHandler eventsync.Handler
 	switch config.Sync.Mode {
 	case SyncModeForward:
-		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials)
+		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials, s.eventReceiver())
 	case SyncModeReceive:
 		syncHandler, err = eventsync.StartForward(config.Sync.Address, credentials)
 	default:

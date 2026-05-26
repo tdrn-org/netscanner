@@ -190,7 +190,7 @@ func (s *Server) startSync(ctx context.Context, config *Config) error {
 	if config.Sync.Mode == SyncModeDisable {
 		return nil
 	}
-	s.logger.Info("enabling sync...", slog.String("address", config.Sync.Address), slog.String("mode", config.Sync.Mode.Value()))
+	s.logger.Info("enabling Sync...", slog.String("address", config.Sync.Address), slog.String("mode", config.Sync.Mode.Value()))
 	credentials, err := config.Sync.loadCredentials()
 	if err != nil {
 		return err
@@ -198,9 +198,9 @@ func (s *Server) startSync(ctx context.Context, config *Config) error {
 	var syncHandler eventsync.Handler
 	switch config.Sync.Mode {
 	case SyncModeForward:
-		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials, s.eventReceiver())
-	case SyncModeReceive:
 		syncHandler, err = eventsync.StartForward(config.Sync.Address, credentials)
+	case SyncModeReceive:
+		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials, s.eventReceiver())
 	default:
 		return fmt.Errorf("unrecognized sync mode '%s'", config.Sync.Mode)
 	}

@@ -79,7 +79,18 @@ func (h *receiveHandler) Serve() {
 	}
 }
 
+var sensorEventTypeMap map[proto.EventType]sensor.EventType = map[proto.EventType]sensor.EventType{
+	proto.EventType_EVENT_TYPE_INFORMATIONAL: sensor.EventTypeInformational,
+	proto.EventType_EVENT_TYPE_GRANTED:       sensor.EventTypeGranted,
+	proto.EventType_EVENT_TYPE_DENIED:        sensor.EventTypeDenied,
+	proto.EventType_EVENT_TYPE_ERROR:         sensor.EventTypeError,
+}
+
 func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*proto.EmptyResponse, error) {
+	sensorEventType, ok := sensorEventTypeMap[event.Type]
+	if !ok {
+		return &proto.EmptyResponse{}, fmt.Errorf("unrecognized event type: %s", event.Type)
+	}
 	var address netip.Addr
 	switch len(event.Address) {
 	case 4:
@@ -92,7 +103,7 @@ func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*pr
 	sensorEvent := &sensor.Event{
 		Host:            event.Host,
 		Timestamp:       event.Timestamp.AsTime(),
-		Type:            sensor.EventType(event.Type.String()),
+		Type:            sensorEventType,
 		Address:         address,
 		HardwareAddress: event.HardwareAddress,
 		User:            event.User,
@@ -152,10 +163,15 @@ type forwardHandler struct {
 	logger *slog.Logger
 }
 
-var eventTypeMap map[sensor.EventType]proto.EventType = map[sensor.EventType]proto.EventType{}
+var protoEventTypeMap map[sensor.EventType]proto.EventType = map[sensor.EventType]proto.EventType{
+	sensor.EventTypeInformational: proto.EventType_EVENT_TYPE_INFORMATIONAL,
+	sensor.EventTypeGranted:       proto.EventType_EVENT_TYPE_GRANTED,
+	sensor.EventTypeDenied:        proto.EventType_EVENT_TYPE_DENIED,
+	sensor.EventTypeError:         proto.EventType_EVENT_TYPE_ERROR,
+}
 
 func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
-	eventType, ok := eventTypeMap[event.Type]
+	protoEventType, ok := protoEventTypeMap[event.Type]
 	if !ok {
 		h.logger.Warn("unrecognized event type", slog.String("type", string(event.Type)))
 		return
@@ -163,7 +179,7 @@ func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
 	req := &proto.Event{
 		Host:            event.Host,
 		Timestamp:       timestamppb.New(event.Timestamp),
-		Type:            eventType,
+		Type:            protoEventType,
 		Address:         event.Address.AsSlice(),
 		HardwareAddress: event.HardwareAddress,
 		User:            event.User,

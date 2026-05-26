@@ -35,18 +35,18 @@ db = "netscanner"
 user = "netscanner"
 password = ""
 
-[sync]
-mode = "disabled"
-address = ":50051"
-crt_file = "./node.crt"
-key_file = "./node.key"
-ca_file = "./ca.crt"
-
 [metrics]
 enabled = false
 path = "/metrics"
 process = false
 sensors = true
+
+[sync]
+mode = "disable"
+address = ":50051"
+crt_file = "./node.crt"
+key_file = "./node.key"
+ca_file = "./ca.crt"
 
 [sensors]
 include = "./sensors.d"

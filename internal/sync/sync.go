@@ -20,13 +20,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
+	"net/netip"
 
 	"github.com/tdrn-org/netscanner/internal/sync/proto"
 	"github.com/tdrn-org/netscanner/mtls"
 	"github.com/tdrn-org/netscanner/sensor"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Handler interface {
@@ -46,10 +49,12 @@ func StartReceive(address string, credentials *mtls.Credentials, receiver sensor
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on address '%s' (cause: %w)", address, err)
 	}
+	logger := slog.With(slog.String("sync", "receive"), slog.String("address", listener.Addr().String()))
 	handler := &receiveHandler{
 		server:   server,
 		listener: listener,
 		receiver: receiver,
+		logger:   logger,
 	}
 	proto.RegisterEventStreamerServer(server, handler)
 	go handler.Serve()
@@ -61,23 +66,45 @@ type receiveHandler struct {
 	server   *grpc.Server
 	listener net.Listener
 	receiver sensor.EventReceiver
+	logger   *slog.Logger
 }
 
 func (h *receiveHandler) Serve() {
+	h.logger.Info("serving...")
 	err := h.server.Serve(h.listener)
 	if errors.Is(err, grpc.ErrServerStopped) {
-
+		h.logger.Info("stopped")
 	} else if err != nil {
-
+		h.logger.Error("serve failure", slog.Any("err", err))
 	}
 }
 
 func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*proto.EmptyResponse, error) {
-	return nil, nil
+	var address netip.Addr
+	switch len(event.Address) {
+	case 4:
+		address = netip.AddrFrom4([4]byte(event.Address))
+	case 16:
+		address = netip.AddrFrom16([16]byte(event.Address))
+	default:
+		return &proto.EmptyResponse{}, fmt.Errorf("unexpected address lenght: %d", len(event.Address))
+	}
+	sensorEvent := &sensor.Event{
+		Host:            event.Host,
+		Timestamp:       event.Timestamp.AsTime(),
+		Type:            sensor.EventType(event.Type.String()),
+		Address:         address,
+		HardwareAddress: event.HardwareAddress,
+		User:            event.User,
+		Service:         event.Service,
+		Sensor:          event.Sensor,
+	}
+	h.receiver.Queue(ctx, sensorEvent)
+	return &proto.EmptyResponse{}, nil
 }
 
 func (h *receiveHandler) Queue(ctx context.Context, event *sensor.Event) {
-
+	// Nothing to do here
 }
 
 func (h *receiveHandler) Shutdown(ctx context.Context) error {
@@ -110,9 +137,11 @@ func StartForward(address string, credentials *mtls.Credentials) (Handler, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to start sync client (cause: %w)", err)
 	}
+	logger := slog.With(slog.String("sync", "forward"), slog.String("address", address))
 	handler := &forwardHandler{
 		conn:   conn,
 		client: proto.NewEventStreamerClient(conn),
+		logger: logger,
 	}
 	return handler, nil
 }
@@ -120,15 +149,31 @@ func StartForward(address string, credentials *mtls.Credentials) (Handler, error
 type forwardHandler struct {
 	conn   *grpc.ClientConn
 	client proto.EventStreamerClient
+	logger *slog.Logger
 }
 
+var eventTypeMap map[sensor.EventType]proto.EventType = map[sensor.EventType]proto.EventType{}
+
 func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
+	eventType, ok := eventTypeMap[event.Type]
+	if !ok {
+		h.logger.Warn("unrecognized event type", slog.String("type", string(event.Type)))
+		return
+	}
 	req := &proto.Event{
-		Host: event.Host,
+		Host:            event.Host,
+		Timestamp:       timestamppb.New(event.Timestamp),
+		Type:            eventType,
+		Address:         event.Address.AsSlice(),
+		HardwareAddress: event.HardwareAddress,
+		User:            event.User,
+		Service:         event.Service,
+		Sensor:          event.Sensor,
 	}
 	_, err := h.client.SendEvent(ctx, req)
 	if err != nil {
-
+		h.logger.Warn("failed to send event", slog.Any("err", err))
+		return
 	}
 }
 

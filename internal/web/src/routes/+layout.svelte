@@ -15,8 +15,9 @@
 	];
 
 	function isActive(path: string): boolean {
-		if (path === '/') return $page.url.pathname === '/';
-		return $page.url.pathname.startsWith(path);
+		const resolved = resolve(path);
+		if (path === '/') return $page.url.pathname === resolved;
+		return $page.url.pathname.startsWith(resolved);
 	}
 </script>
 

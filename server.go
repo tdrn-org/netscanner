@@ -77,11 +77,11 @@ func StartServer(ctx context.Context, config *Config) (*Server, error) {
 	startFuncs := []func(ctx context.Context, config *Config) error{
 		s.startHttpServer,
 		s.startDatastore,
+		s.startSync,
 		s.startMetrics,
 		s.startARPCache,
 		s.startDNSProvider,
 		s.startInfoCache,
-		s.startSync,
 		s.startSensors,
 	}
 	for _, startFunc := range startFuncs {
@@ -109,15 +109,16 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	if err != nil {
 		return err
 	}
-	err = web.MountStatics(httpServer, config.Server.PublicURL.URL)
+	basePath := web.BasePath(config.Server.PublicURL.URL)
+	err = web.MountStatics(httpServer, basePath)
 	if err != nil {
 		return err
 	}
-	httpServer.HandleFunc("GET "+apiPathPingV1, s.handlePingGet)
-	httpServer.HandleFunc("GET "+apiPathSensorsV1, s.handleSensorsGet)
-	httpServer.HandleFunc("GET "+apiPathLMIsV1, s.handleLMIsGet)
-	httpServer.HandleFunc("GET "+apiPathDeviceV1, s.handleDeviceGet)
-	httpServer.HandleFunc("GET "+apiPathConnectionsV1, s.handleConnectionsGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathPingV1, s.handlePingGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathSensorsV1, s.handleSensorsGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathLMIsV1, s.handleLMIsGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathDeviceV1, s.handleDeviceGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathConnectionsV1, s.handleConnectionsGet)
 	s.httpServer = httpServer
 	if config.Server.PublicURL.URL != nil {
 		s.baseURL = config.Server.PublicURL.URL
@@ -185,6 +186,45 @@ func (s *Server) startMetrics(ctx context.Context, config *Config) error {
 	return nil
 }
 
+func (s *Server) startSync(ctx context.Context, config *Config) error {
+	if config.Sync.Mode == SyncModeDisable {
+		return nil
+	}
+	s.logger.Info("enabling sync...", slog.String("address", config.Sync.Address), slog.String("mode", config.Sync.Mode.Value()))
+	credentials, err := config.Sync.loadCredentials()
+	if err != nil {
+		return err
+	}
+	var syncHandler eventsync.Handler
+	switch config.Sync.Mode {
+	case SyncModeForward:
+		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials, s.eventReceiver())
+	case SyncModeReceive:
+		syncHandler, err = eventsync.StartForward(config.Sync.Address, credentials)
+	default:
+		return fmt.Errorf("unrecognized sync mode '%s'", config.Sync.Mode)
+	}
+	if err != nil {
+		return err
+	}
+	s.syncHandler = syncHandler
+	return nil
+}
+
+func (s *Server) shutdownSync(ctx context.Context) error {
+	if s.syncHandler == nil {
+		return nil
+	}
+	return s.syncHandler.Shutdown(ctx)
+}
+
+func (s *Server) closeSync() error {
+	if s.syncHandler == nil {
+		return nil
+	}
+	return s.syncHandler.Close()
+}
+
 func (s *Server) startARPCache(ctx context.Context, config *Config) error {
 	arpCache, err := arp.NewCache(time.Duration(config.ARPCache.TTL))
 	if err != nil {
@@ -222,44 +262,6 @@ func (s *Server) closeInfoCache() error {
 		return nil
 	}
 	return s.deviceInfos.Close()
-}
-
-func (s *Server) startSync(ctx context.Context, config *Config) error {
-	if config.Sync.Mode == SyncModeDisabled {
-		return nil
-	}
-	credentials, err := config.Sync.loadCredentials()
-	if err != nil {
-		return err
-	}
-	var syncHandler eventsync.Handler
-	switch config.Sync.Mode {
-	case SyncModeForward:
-		syncHandler, err = eventsync.StartReceive(config.Sync.Address, credentials, s.eventReceiver())
-	case SyncModeReceive:
-		syncHandler, err = eventsync.StartForward(config.Sync.Address, credentials)
-	default:
-		return fmt.Errorf("unrecognized sync mode '%s'", config.Sync.Mode)
-	}
-	if err != nil {
-		return err
-	}
-	s.syncHandler = syncHandler
-	return nil
-}
-
-func (s *Server) shutdownSync(ctx context.Context) error {
-	if s.syncHandler == nil {
-		return nil
-	}
-	return s.syncHandler.Shutdown(ctx)
-}
-
-func (s *Server) closeSync() error {
-	if s.syncHandler == nil {
-		return nil
-	}
-	return s.syncHandler.Close()
 }
 
 func (s *Server) startSensors(ctx context.Context, config *Config) error {

@@ -178,10 +178,6 @@ func (cmd *templateCmd) Run(_ context.Context, args *cmdLine) error {
 	return nil
 }
 
-func defaultON() string {
-	return "local"
-}
-
 type genTLSCACmd struct {
 	ON       string        `help:"The organization name to use" default:"${on_default}"`
 	Validity time.Duration `help:"The validity time range of the CA certificate" default:"${validity_default}"`

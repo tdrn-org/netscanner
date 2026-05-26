@@ -17,6 +17,7 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"testing/fstest"
 
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-httpserver/csp"
@@ -38,12 +40,33 @@ var buildFS embed.FS
 //go:embed all:messages/*
 var messagesFS embed.FS
 
-func MountStatics(server *httpserver.Instance, publicURL *url.URL) error {
+// basePathPlaceholder is the literal placeholder baked into the SvelteKit build
+// (see svelte.config.js). MountStatics replaces every occurrence with the
+// runtime base path, so the same embedded bundle can be served under any prefix.
+const basePathPlaceholder = "/__NETSCANNER_BASE_PATH__"
+
+// BasePath derives the URL prefix used to host the application from the public URL.
+// Returns "" for root hosting, or a leading-slash path with no trailing slash (e.g. "/netscanner").
+func BasePath(publicURL *url.URL) string {
+	if publicURL == nil {
+		return ""
+	}
+	trimmed := strings.Trim(publicURL.Path, "/")
+	if trimmed == "" {
+		return ""
+	}
+	return "/" + trimmed
+}
+
+func MountStatics(server *httpserver.Instance, basePath string) error {
 	sub, err := fs.Sub(buildFS, "build")
 	if err != nil {
 		return fmt.Errorf("unexpected web document structure (cause: %w)", err)
 	}
-	docs := sub.(fs.ReadDirFS)
+	docs, err := rewriteBasePath(sub.(fs.ReadDirFS), basePath)
+	if err != nil {
+		return fmt.Errorf("failed to rewrite web document base path (cause: %w)", err)
+	}
 	fileServer := http.FileServerFS(docs)
 	// SPA fallback: serve index.html for unmatched paths (client-side routing)
 	docsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,25 +101,48 @@ func MountStatics(server *httpserver.Instance, publicURL *url.URL) error {
 	}
 	cacheControl := httpserver.StaticHeader("Cache-Control", "public, max-age=86400, immutable")
 
-	// Derive base path from public URL
-	basePath := ""
-	if publicURL != nil {
-		basePath = publicURL.Path
-	}
-	// Normalize base path: ensure leading slash, no trailing slash
-	if basePath == "" {
-		basePath = "/"
-	} else {
-		basePath = "/" + strings.Trim(basePath, "/")
-	}
-
 	var handler http.Handler = docsHandler
-	if basePath != "/" {
+	if basePath != "" {
 		handler = http.StripPrefix(basePath, docsHandler)
 	}
 
 	server.Handle(basePath+"/", httpserver.HeaderHandler(handler, contentSecurityPolicy.Header(), cacheControl))
 	return nil
+}
+
+// rewriteBasePath returns an in-memory FS where every occurrence of
+// basePathPlaceholder is substituted with basePath. Binary files (without
+// the placeholder) are copied through unchanged.
+func rewriteBasePath(src fs.ReadDirFS, basePath string) (fs.ReadDirFS, error) {
+	placeholder := []byte(basePathPlaceholder)
+	replacement := []byte(basePath)
+	out := fstest.MapFS{}
+	err := fs.WalkDir(src, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		data, err := fs.ReadFile(src, path)
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		out[path] = &fstest.MapFile{
+			Data:    bytes.ReplaceAll(data, placeholder, replacement),
+			Mode:    info.Mode(),
+			ModTime: info.ModTime(),
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 var messageTables map[language.Tag]map[string]string

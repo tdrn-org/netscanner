@@ -38,15 +38,15 @@ func (c *SyncConfig) loadCredentials() (*mtls.Credentials, error) {
 type SyncMode string
 
 const (
-	SyncModeDisabled SyncMode = "disabled"
-	SyncModeForward  SyncMode = "forward"
-	SyncModeReceive  SyncMode = "receive"
+	SyncModeDisable SyncMode = "disable"
+	SyncModeForward SyncMode = "forward"
+	SyncModeReceive SyncMode = "receive"
 )
 
 var knownSyncModes map[string]SyncMode = map[string]SyncMode{
-	string(SyncModeDisabled): SyncModeDisabled,
-	string(SyncModeForward):  SyncModeForward,
-	string(SyncModeReceive):  SyncModeReceive,
+	string(SyncModeDisable): SyncModeDisable,
+	string(SyncModeForward): SyncModeForward,
+	string(SyncModeReceive): SyncModeReceive,
 }
 
 func (m *SyncMode) Value() string {

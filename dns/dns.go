@@ -49,7 +49,7 @@ func Open(config ProviderConfig) (Provider, error) {
 	name := config.ProviderName()
 	open, ok := providers[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown GeoIP provider name '%s'", name)
+		return nil, fmt.Errorf("unknown DNS provider name '%s'", name)
 	}
 	return open(config)
 }

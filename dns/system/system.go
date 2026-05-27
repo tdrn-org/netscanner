@@ -18,7 +18,6 @@ package system
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -39,10 +38,9 @@ func (c *Config) ProviderName() dns.ProviderName {
 }
 
 type systemProvider struct {
-	config        *Config
-	resolver      *net.Resolver
-	noSuchHostErr error
-	logger        *slog.Logger
+	config   *Config
+	resolver *net.Resolver
+	logger   *slog.Logger
 }
 
 func open(config dns.ProviderConfig) (dns.Provider, error) {
@@ -51,12 +49,10 @@ func open(config dns.ProviderConfig) (dns.Provider, error) {
 		return nil, fmt.Errorf("not a System DNS configuration")
 	}
 	resolver := net.DefaultResolver
-	_, noSuchHostErr := resolver.LookupHost(context.Background(), "no.such.host")
 	provider := &systemProvider{
-		config:        systemConfig,
-		resolver:      resolver,
-		noSuchHostErr: noSuchHostErr,
-		logger:        slog.With(slog.String("dns", string(systemConfig.ProviderName()))),
+		config:   systemConfig,
+		resolver: resolver,
+		logger:   slog.With(slog.String("dns", string(systemConfig.ProviderName()))),
 	}
 	return provider, nil
 }
@@ -69,8 +65,10 @@ func (p *systemProvider) LookupHost(ctx context.Context, host string) (netip.Add
 	hostLogger := p.logger.With(slog.String("host", host))
 	hostLogger.Debug("Looking up host...")
 	lookupResult, err := p.resolver.LookupHost(ctx, host)
-	if err != nil && !errors.Is(err, p.noSuchHostErr) {
-		hostLogger.Warn("DNS lookup failure", slog.Any("err", err))
+	if err != nil {
+		if dnsErr, ok := err.(*net.DNSError); !ok || !dnsErr.IsNotFound {
+			hostLogger.Warn("DNS lookup failure", slog.Any("err", err))
+		}
 	}
 	if len(lookupResult) == 0 {
 		return netip.Addr{}, dns.ErrNotFound

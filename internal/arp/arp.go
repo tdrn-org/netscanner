@@ -65,6 +65,7 @@ func (c *Cache) refreshInterfacesIfNeeded(ctx context.Context) {
 		c.mutex.RUnlock()
 		return
 	}
+	c.mutex.RUnlock()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.nextInterfaceRefresh = now.Add(c.ttl)

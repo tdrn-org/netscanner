@@ -19,7 +19,6 @@ package model
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"math"
 	"net/netip"
 	"strconv"
@@ -66,7 +65,7 @@ func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int)
 		Lng:             lng,
 		City:            deviceInfo.Geo.City,
 		Country:         deviceInfo.Geo.Country,
-		CountryCode:     "",
+		CountryCode:     deviceInfo.Geo.CountryCode,
 	}
 }
 
@@ -101,39 +100,30 @@ func (d *Device) String() string {
 
 func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {
 	if d.Address != deviceInfo.Address.String() {
-		fmt.Println("address-mismatch")
 		return false
 	}
 	if d.Network != deviceInfo.Network {
-		fmt.Println("network-mismatch")
 		return false
 	}
 	if d.DNS != deviceInfo.DNS {
-		fmt.Println("dns-mismatch")
 		return false
 	}
 	if d.HardwareAddress != deviceInfo.HardwareAddress.String() {
-		fmt.Println("hardware-address-mismatch")
 		return false
 	}
 	if math.Abs(d.Lat-deviceInfo.Geo.Lat) > 0.0001 {
-		fmt.Println("lat-mismatch")
 		return false
 	}
 	if math.Abs(d.Lng-deviceInfo.Geo.Lng) > 0.0001 {
-		fmt.Println("lng-mismatch")
 		return false
 	}
 	if !d.City.Equal(deviceInfo.Geo.City) {
-		fmt.Println("city-mismatch")
 		return false
 	}
 	if !d.Country.Equal(deviceInfo.Geo.Country) {
-		fmt.Println("country-mismatch")
 		return false
 	}
 	if d.CountryCode != deviceInfo.Geo.CountryCode {
-		fmt.Println("country-code-mismatch")
 		return false
 	}
 	return true

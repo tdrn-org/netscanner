@@ -21,6 +21,8 @@ import (
 	_ "embed"
 	"math"
 	"net/netip"
+	"strconv"
+	"strings"
 
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/netscanner/internal/device"
@@ -65,6 +67,35 @@ func NewDevice(driver *database.Driver, deviceInfo *device.Info, generation int)
 		Country:         deviceInfo.Geo.Country,
 		CountryCode:     "",
 	}
+}
+
+func (d *Device) String() string {
+	buffer := &strings.Builder{}
+	buffer.WriteString("Address:")
+	buffer.WriteString(d.Address)
+	buffer.WriteString(" Network:")
+	buffer.WriteString(d.Network)
+	if d.HardwareAddress != "" {
+		buffer.WriteString(" MAC:")
+		buffer.WriteString(d.HardwareAddress)
+	}
+	if d.DNS != "" {
+		buffer.WriteString(" DNS:")
+		buffer.WriteString(d.DNS)
+	}
+	buffer.WriteString(" Loc:")
+	buffer.WriteString(strconv.FormatFloat(d.Lat, 'f', 2, 64))
+	buffer.WriteString(",")
+	buffer.WriteString(strconv.FormatFloat(d.Lng, 'f', 2, 64))
+	if len(d.City) > 0 {
+		buffer.WriteString(" City:")
+		buffer.WriteString(i18n.Name(d.City).String())
+	}
+	if len(d.Country) > 0 {
+		buffer.WriteString(" Country:")
+		buffer.WriteString(i18n.Name(d.Country).String())
+	}
+	return buffer.String()
 }
 
 func (d *Device) EqualDeviceInfo(deviceInfo *device.Info) bool {

@@ -119,12 +119,13 @@ func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device
 
 func (s *Store) updateOrInsertDevice(ctx context.Context, deviceInfo *device.Info) (*model.Device, error) {
 	device, err := model.SelectDeviceByAddress(ctx, s.driver, deviceInfo.Address)
-	fmt.Println("device:", device)
+	fmt.Println("device     :", device)
 	fmt.Println("device-info:", deviceInfo)
 	if err == nil {
 		if !device.EqualDeviceInfo(deviceInfo) {
 			device = model.NewDevice(s.driver, deviceInfo, device.Generation+1)
 			err = device.Insert(ctx)
+			fmt.Println("new-device :", device)
 		}
 	} else if database.NoRows(err) {
 		device = model.NewDevice(s.driver, deviceInfo, 0)

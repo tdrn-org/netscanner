@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/tdrn-org/netscanner/mtls"
+	"github.com/tdrn-org/netscanner/internal/mtls"
 )
 
 type SyncConfig struct {

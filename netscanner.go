@@ -33,7 +33,7 @@ import (
 	"github.com/tdrn-org/go-diff"
 	"github.com/tdrn-org/go-log"
 	"github.com/tdrn-org/netscanner/internal/buildinfo"
-	"github.com/tdrn-org/netscanner/mtls"
+	"github.com/tdrn-org/netscanner/internal/mtls"
 )
 
 func RunArgs(ctx context.Context, args []string) error {

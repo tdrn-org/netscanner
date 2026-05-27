@@ -92,15 +92,11 @@ func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
 		s.logger.Warn("failed to lookup server device info", slog.String("host", event.Host))
 		return
 	}
-	// TODO: Log finalisieren
-	s.logger.Info("server device info", slog.String("device", serverInfo.String()))
 	clientInfo, found := s.deviceInfos.Lookup(ctx, event.Address.String())
 	if !found {
 		s.logger.Warn("failed to lookup client device info", slog.String("address", event.Address.String()))
 		return
 	}
-	// TODO: Log finalisieren
-	s.logger.Info("client device info", slog.String("device", clientInfo.String()))
 	err := s.store.UpdateOrInsertConnection(ctx, serverInfo, clientInfo, event)
 	if err != nil {
 		s.logger.Error("failed to record connection", slog.Any("err", err))

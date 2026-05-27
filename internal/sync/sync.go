@@ -24,8 +24,8 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/tdrn-org/netscanner/internal/mtls"
 	"github.com/tdrn-org/netscanner/internal/sync/proto"
-	"github.com/tdrn-org/netscanner/mtls"
 	"github.com/tdrn-org/netscanner/sensor"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"

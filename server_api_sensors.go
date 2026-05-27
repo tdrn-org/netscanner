@@ -81,6 +81,8 @@ func (s *Server) queueEvent(ctx context.Context, event *sensor.Event) {
 func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 	if event.HardwareAddress != nil {
 		s.arpCache.Put(ctx, event.Address, event.HardwareAddress)
+	} else {
+		event.HardwareAddress = s.arpCache.Get(ctx, event.Address)
 	}
 }
 

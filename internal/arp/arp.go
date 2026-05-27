@@ -19,8 +19,10 @@ package arp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/tdrn-org/netscanner/internal/cache"
@@ -28,7 +30,10 @@ import (
 )
 
 type Cache struct {
-	cache cache.KeyValue[netip.Addr, net.HardwareAddr]
+	cache                cache.KeyValue[netip.Addr, net.HardwareAddr]
+	ttl                  time.Duration
+	nextInterfaceRefresh time.Time
+	mutex                sync.RWMutex
 }
 
 func NewCache(ttl time.Duration) (*Cache, error) {
@@ -38,15 +43,64 @@ func NewCache(ttl time.Duration) (*Cache, error) {
 	}
 	c := &Cache{
 		cache: cache,
+		ttl:   ttl,
 	}
 	return c, nil
 }
 
 func (c *Cache) Get(ctx context.Context, address netip.Addr) net.HardwareAddr {
+	c.refreshInterfacesIfNeeded(ctx)
 	hardwareAddress, _ := c.cache.Get(ctx, address)
 	return hardwareAddress
 }
 
 func (c *Cache) Put(ctx context.Context, address netip.Addr, hardwareAddress net.HardwareAddr) {
 	c.cache.Put(ctx, address, hardwareAddress)
+}
+
+func (c *Cache) refreshInterfacesIfNeeded(ctx context.Context) {
+	c.mutex.RLock()
+	now := time.Now()
+	if now.Before(c.nextInterfaceRefresh) {
+		c.mutex.RUnlock()
+		return
+	}
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.nextInterfaceRefresh = now.Add(c.ttl)
+	c.refreshInterfaces(ctx)
+}
+
+func (c *Cache) refreshInterfaces(ctx context.Context) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		slog.Error("failed to list host interfaces", slog.Any("err", err))
+		return
+	}
+	for _, iface := range ifaces {
+		c.refreshInterface(ctx, iface)
+	}
+}
+
+func (c *Cache) refreshInterface(ctx context.Context, iface net.Interface) {
+	hardwareAddress := iface.HardwareAddr
+	addrs, err := iface.Addrs()
+	if err != nil {
+		slog.Error("failed to list interface addresses", slog.String("iface", iface.Name), slog.Any("err", err))
+		return
+	}
+	for _, addr := range addrs {
+		switch addr := addr.(type) {
+		case *net.IPAddr:
+			ipAddr, ok := netip.AddrFromSlice(addr.IP)
+			if ok {
+				c.cache.Put(ctx, ipAddr, hardwareAddress)
+			}
+		case *net.IPNet:
+			ipAddr, ok := netip.AddrFromSlice(addr.IP)
+			if ok {
+				c.cache.Put(ctx, ipAddr, hardwareAddress)
+			}
+		}
+	}
 }

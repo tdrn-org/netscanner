@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tdrn-org/netscanner/mtls"
+	"github.com/tdrn-org/netscanner/internal/mtls"
 )
 
 func TestCertificateGeneration(t *testing.T) {

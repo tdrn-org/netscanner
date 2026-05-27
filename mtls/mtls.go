@@ -111,17 +111,18 @@ func (c *Credentials) TLSConfig() (*tls.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TLS key pair (cause: %w)", err)
 	}
-	var clientCAs *x509.CertPool
+	var caPool *x509.CertPool
 	if len(c.CAPEM) > 0 {
-		clientCAs = x509.NewCertPool()
-		if !clientCAs.AppendCertsFromPEM(c.CAPEM) {
+		caPool = x509.NewCertPool()
+		if !caPool.AppendCertsFromPEM(c.CAPEM) {
 			return nil, fmt.Errorf("failed to add TLS CA")
 		}
 	}
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    clientCAs,
+		RootCAs:      caPool,
+		ClientCAs:    caPool,
 	}
 	return tlsConfig, nil
 }

@@ -19,6 +19,7 @@ package accesslog
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/tdrn-org/netscanner/internal/file"
 	"github.com/tdrn-org/netscanner/sensor"
@@ -29,6 +30,30 @@ const Name string = "accesslog"
 type Sensor interface {
 	Path() string
 	sensor.EventSource
+}
+
+type ScanOptions struct {
+	AuthURIs   []string
+	IgnoreURIs []string
+	Tail       bool
+}
+
+func (o *ScanOptions) isAuthURI(uri string) bool {
+	for _, authURI := range o.AuthURIs {
+		if strings.HasPrefix(uri, authURI) {
+			return true
+		}
+	}
+	return false
+}
+
+func (o *ScanOptions) isIgnoreURI(uri string) bool {
+	for _, ignoreURI := range o.IgnoreURIs {
+		if strings.HasPrefix(uri, ignoreURI) {
+			return true
+		}
+	}
+	return false
 }
 
 func ScanRegexp(path string, options *RegexpScanOptions) (Sensor, error) {

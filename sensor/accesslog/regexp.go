@@ -32,13 +32,14 @@ import (
 )
 
 type RegexpScanOptions struct {
+	ScanOptions
 	Pattern         *regexp.Regexp
 	TimestampField  int
 	TimestampLayout string
 	StatusField     int
 	AddressField    int
 	UserField       int
-	Tail            bool
+	URIField        int
 }
 
 func (o *RegexpScanOptions) validate() error {
@@ -49,7 +50,7 @@ func (o *RegexpScanOptions) validate() error {
 	if o.Pattern == nil || maxFields < 4 {
 		return fmt.Errorf("invalid pattern")
 	}
-	validationErrs := make([]error, 0, 5)
+	validationErrs := make([]error, 0, 6)
 	if o.TimestampField < 1 || maxFields < o.TimestampField {
 		validationErrs = append(validationErrs, fmt.Errorf("invalid timestamp field option: %d", o.TimestampField))
 	}
@@ -64,6 +65,9 @@ func (o *RegexpScanOptions) validate() error {
 	}
 	if o.UserField < 0 || maxFields < o.UserField {
 		validationErrs = append(validationErrs, fmt.Errorf("invalid user field option: %d", o.UserField))
+	}
+	if o.URIField < 0 || maxFields < o.URIField {
+		validationErrs = append(validationErrs, fmt.Errorf("invalid URI field option: %d", o.URIField))
 	}
 	return errors.Join(validationErrs...)
 }
@@ -91,10 +95,19 @@ func (o *RegexpScanOptions) resolve(match []string) (*sensor.Event, error) {
 	if o.UserField > 0 {
 		user = match[o.UserField]
 	}
+	uri := ""
+	if o.URIField > 0 {
+		uri = match[o.URIField]
+	}
+	if o.isIgnoreURI(uri) {
+		return nil, nil
+	}
 	eventType := sensor.EventTypeInformational
 	switch {
 	case 200 <= status && status < 300:
-		eventType = sensor.EventTypeGranted
+		if o.isAuthURI(uri) {
+			eventType = sensor.EventTypeGranted
+		}
 	case 400 <= status && status < 500:
 		eventType = sensor.EventTypeDenied
 	case 500 <= status && status < 600:
@@ -141,6 +154,9 @@ func (s *regexpAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 			event, err := s.options.resolve(match)
 			if err != nil {
 				s.logger.Warn("resolve failure", slog.Any("err", err))
+				continue
+			}
+			if event == nil {
 				continue
 			}
 			event.Service = "http"

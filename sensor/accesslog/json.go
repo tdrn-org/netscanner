@@ -29,12 +29,13 @@ import (
 )
 
 type JSONScanOptions struct {
+	ScanOptions
 	TimestampField  file.JSONPath
 	TimestampLayout string
 	StatusField     file.JSONPath
 	AddressField    file.JSONPath
 	UserField       file.JSONPath
-	Tail            bool
+	URIField        file.JSONPath
 }
 
 func (o *JSONScanOptions) validate() error {
@@ -69,10 +70,16 @@ func (o *JSONScanOptions) resolve(object file.JSON) (*sensor.Event, error) {
 		return nil, fmt.Errorf("failed to parse address field '%s' (cause: %w)", addressString, err)
 	}
 	user, _ := file.JSONValue[string](object, o.UserField...)
+	uri, _ := file.JSONValue[string](object, o.URIField...)
+	if o.isIgnoreURI(uri) {
+		return nil, nil
+	}
 	eventType := sensor.EventTypeInformational
 	switch {
 	case 200 <= status && status < 300:
-		eventType = sensor.EventTypeGranted
+		if o.isAuthURI(uri) {
+			eventType = sensor.EventTypeGranted
+		}
 	case 400 <= status && status < 500:
 		eventType = sensor.EventTypeDenied
 	case 500 <= status && status < 600:
@@ -120,6 +127,9 @@ func (s *jsonAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 			event, err := s.options.resolve(object)
 			if err != nil {
 				s.logger.Warn("resolve failure", slog.Any("err", err))
+				continue
+			}
+			if event == nil {
 				continue
 			}
 			event.Service = "http"

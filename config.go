@@ -179,16 +179,19 @@ func (c *LogfileSensorConfig) regexpScanOptions() *logfile.RegexpScanOptions {
 }
 
 type AccesslogSensorConfig struct {
-	Name     string      `toml:"name"`
-	Path     string      `toml:"path"`
-	Encoding LogEncoding `toml:"encoding"`
-	Regexp   struct {
+	Name       string      `toml:"name"`
+	Path       string      `toml:"path"`
+	AuthURIs   []string    `toml:"auth_uris"`
+	IgnoreURIs []string    `toml:"ignore_uris"`
+	Encoding   LogEncoding `toml:"encoding"`
+	Regexp     struct {
 		Pattern         config.RegexpSpec `toml:"pattern"`
 		TimestampField  int               `toml:"timestamp_field"`
 		TimestampLayout string            `toml:"timestamp_layout"`
 		StatusField     int               `toml:"status_field"`
 		AddressField    int               `toml:"address_field"`
 		UserField       int               `toml:"user_field"`
+		URIField        int               `toml:"uri_field"`
 	} `toml:"regexp"`
 	JSON struct {
 		TimestampField  []string `toml:"timestamp_field"`
@@ -196,6 +199,7 @@ type AccesslogSensorConfig struct {
 		StatusField     []string `toml:"status_field"`
 		AddressField    []string `toml:"address_field"`
 		UserField       []string `toml:"user_field"`
+		URIField        []string `toml:"uri_field"`
 	} `toml:"json"`
 }
 
@@ -205,24 +209,32 @@ func (c *AccesslogSensorConfig) String() string {
 
 func (c *AccesslogSensorConfig) regexpScanOptions() *accesslog.RegexpScanOptions {
 	return &accesslog.RegexpScanOptions{
+		ScanOptions: accesslog.ScanOptions{
+			AuthURIs:   c.AuthURIs,
+			IgnoreURIs: c.IgnoreURIs,
+			Tail:       true, // for now we default to true (accept misses; before duplicates)
+		},
 		Pattern:         c.Regexp.Pattern.Regexp,
 		TimestampField:  c.Regexp.TimestampField,
 		TimestampLayout: c.Regexp.TimestampLayout,
 		StatusField:     c.Regexp.StatusField,
 		AddressField:    c.Regexp.AddressField,
 		UserField:       c.Regexp.UserField,
-		Tail:            true, // for now we default to true (accept misses; before duplicates)
 	}
 }
 
 func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
 	return &accesslog.JSONScanOptions{
+		ScanOptions: accesslog.ScanOptions{
+			AuthURIs:   c.AuthURIs,
+			IgnoreURIs: c.IgnoreURIs,
+			Tail:       true, // for now we default to true (accept misses; before duplicates)
+		},
 		TimestampField:  c.JSON.TimestampField,
 		TimestampLayout: c.JSON.TimestampLayout,
 		StatusField:     c.JSON.StatusField,
 		AddressField:    c.JSON.AddressField,
 		UserField:       c.JSON.UserField,
-		Tail:            true, // for now we default to true (accept misses; before duplicates)
 	}
 }
 

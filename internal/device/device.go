@@ -158,12 +158,10 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 		return nil, false
 	}
 	for _, hostAddr := range hostAddrs {
-		if hostAddr.Is4() && clientAddress.Is4() {
+		if (hostAddr.Is4() && clientAddress.Is4()) || (hostAddr.Is6() && clientAddress.Is6()) {
 			if c.matchAddrClass(hostAddr, clientAddress) {
 				return c.LookupAddress(ctx, hostAddr)
 			}
-		} else if c.matchAddrClass(hostAddr, clientAddress) {
-			return c.LookupAddress(ctx, hostAddr)
 		}
 	}
 	return nil, false

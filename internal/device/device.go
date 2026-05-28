@@ -157,9 +157,9 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 	if !hit {
 		return nil, false
 	}
-	for _, hostAddr := range hostAddrs {
-		if c.matchAddrs(hostAddr, clientAddress) {
-			info, hit := c.LookupAddress(ctx, hostAddr)
+	for _, serverAddr := range hostAddrs {
+		if c.matchAddrs(clientAddress, serverAddr) {
+			info, hit := c.LookupAddress(ctx, serverAddr)
 			if hit {
 				return info, hit
 			}
@@ -168,14 +168,15 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 	return nil, false
 }
 
-func (c *InfoCache) matchAddrs(addr1 netip.Addr, addr2 netip.Addr) bool {
-	if (addr1.Is4() && addr2.Is6()) || (addr1.Is6() && addr2.Is4()) {
+func (c *InfoCache) matchAddrs(clientAddr netip.Addr, serverAddr netip.Addr) bool {
+	if (clientAddr.Is4() && serverAddr.Is6()) || (clientAddr.Is6() && serverAddr.Is4()) {
 		return false
 	}
-	if addr1.IsLoopback() {
-		return addr2.IsLoopback()
-	} else if addr1.IsPrivate() {
-		return addr2.IsPrivate()
+	if clientAddr.IsLoopback() {
+		return serverAddr.IsLoopback()
+	}
+	if clientAddr.IsPrivate() {
+		return serverAddr.IsPrivate()
 	}
 	return true
 }

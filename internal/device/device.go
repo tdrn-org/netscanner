@@ -157,28 +157,29 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 	if !hit {
 		return nil, false
 	}
-	for _, serverAddr := range hostAddrs {
-		if c.matchAddrs(clientAddress, serverAddr) {
-			info, hit := c.LookupAddress(ctx, serverAddr)
-			if hit {
-				return info, hit
-			}
+	var matchingHostAddr netip.Addr
+	match := 0
+	for _, hostAddr := range hostAddrs {
+		addrMatch := c.matchAddrs(clientAddress, hostAddr)
+		if addrMatch > match {
+			matchingHostAddr = hostAddr
 		}
 	}
-	return nil, false
+	return c.LookupAddress(ctx, matchingHostAddr)
 }
 
-func (c *InfoCache) matchAddrs(clientAddr netip.Addr, serverAddr netip.Addr) bool {
-	if (clientAddr.Is4() && serverAddr.Is6()) || (clientAddr.Is6() && serverAddr.Is4()) {
-		return false
+func (c *InfoCache) matchAddrs(clientAddr netip.Addr, serverAddr netip.Addr) int {
+	match := 1
+	if (clientAddr.Is4() && serverAddr.Is4()) || (clientAddr.Is6() && serverAddr.Is6()) {
+		match++
 	}
-	if clientAddr.IsLoopback() {
-		return serverAddr.IsLoopback()
+	if clientAddr.IsLoopback() && serverAddr.IsLoopback() {
+		match++
 	}
-	if clientAddr.IsPrivate() {
-		return serverAddr.IsPrivate()
+	if clientAddr.IsPrivate() && serverAddr.IsPrivate() {
+		match++
 	}
-	return true
+	return match
 }
 
 func (c *InfoCache) LookupAddress(ctx context.Context, address netip.Addr) (*Info, bool) {

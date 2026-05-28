@@ -158,16 +158,20 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 		return nil, false
 	}
 	for _, hostAddr := range hostAddrs {
-		if (hostAddr.Is4() && clientAddress.Is4()) || (hostAddr.Is6() && clientAddress.Is6()) {
-			if c.matchAddrClass(hostAddr, clientAddress) {
-				return c.LookupAddress(ctx, hostAddr)
+		if c.matchAddrs(hostAddr, clientAddress) {
+			info, hit := c.LookupAddress(ctx, hostAddr)
+			if hit {
+				return info, hit
 			}
 		}
 	}
 	return nil, false
 }
 
-func (c *InfoCache) matchAddrClass(addr1 netip.Addr, addr2 netip.Addr) bool {
+func (c *InfoCache) matchAddrs(addr1 netip.Addr, addr2 netip.Addr) bool {
+	if (addr1.Is4() && addr2.Is6()) || (addr1.Is6() && addr2.Is4()) {
+		return false
+	}
 	if addr1.IsLoopback() {
 		return addr2.IsLoopback()
 	} else if addr1.IsPrivate() {

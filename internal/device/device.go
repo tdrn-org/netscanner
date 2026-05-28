@@ -18,6 +18,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -84,7 +85,8 @@ type InfoCache struct {
 	dnsProvider   dns.Provider
 	dnsDomains    []string
 	geoipProvider geoip.Provider
-	cache         cache.KeyValue[string, *Info]
+	infoCache     cache.KeyValue[netip.Addr, *Info]
+	hostCache     cache.KeyValue[string, []netip.Addr]
 }
 
 func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dnsProvider dns.Provider, dnsDomains []string, geoipProvider geoip.Provider) (*InfoCache, error) {
@@ -94,28 +96,22 @@ func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dnsProvider dns.
 		dnsProvider:   dnsProvider,
 		geoipProvider: geoipProvider,
 	}
-	cache, err := memory.NewKeyValue(0, time.Hour, c.loadInfo)
+	ttl := time.Hour
+	infoCache, err := memory.NewKeyValue(0, ttl, c.loadInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device info cache (cause: %w)", err)
 	}
-	c.cache = cache
+	hostCache, err := memory.NewKeyValue(0, ttl, c.loadHost)
+	c.infoCache = infoCache
+	c.hostCache = hostCache
 	return c, nil
 }
 
-func (c *InfoCache) loadInfo(ctx context.Context, query string) (*Info, error) {
-	queryLogger := slog.With(slog.String("query", query))
-	address, err := netip.ParseAddr(query)
-	hostName := ""
-	if err == nil {
-		hostName, err = c.dnsProvider.LookupAddress(ctx, address)
-		if err != nil {
-			queryLogger.Warn("failed to query DNS info", slog.Any("err", err))
-		}
-	} else {
-		address, hostName, err = c.lookupQuery(ctx, query)
-		if err != nil {
-			return nil, err
-		}
+func (c *InfoCache) loadInfo(ctx context.Context, address netip.Addr) (*Info, error) {
+	addressLogger := slog.With(slog.String("address", address.String()))
+	hostName, err := c.dnsProvider.LookupAddress(ctx, address)
+	if err != nil && !errors.Is(err, dns.ErrNotFound) {
+		addressLogger.Warn("failed to query DNS info", slog.Any("err", err))
 	}
 	info := &Info{
 		Address: address,
@@ -128,37 +124,62 @@ func (c *InfoCache) loadInfo(ctx context.Context, query string) (*Info, error) {
 	if err == nil {
 		info.Geo = *geoipInfo
 	} else {
-		queryLogger.Warn("failed to query GeoIP info", slog.Any("err", err))
+		addressLogger.Warn("failed to query GeoIP info", slog.Any("err", err))
 	}
 	return info, nil
 }
 
-func (c *InfoCache) lookupQuery(ctx context.Context, query string) (netip.Addr, string, error) {
+func (c *InfoCache) loadHost(ctx context.Context, host string) ([]netip.Addr, error) {
+	hostLogger := slog.With(slog.String("host", host))
 	hostNames := make([]string, 0, len(c.dnsDomains)+1)
-	hostNames = append(hostNames, query)
-	if !strings.HasSuffix(query, ".") {
+	hostNames = append(hostNames, host)
+	if !strings.HasSuffix(host, ".") {
 		for _, dnsDomain := range c.dnsDomains {
-			hostNames = append(hostNames, query+"."+dnsDomain)
+			hostNames = append(hostNames, host+"."+dnsDomain)
 		}
 	}
+	addrs := make([]netip.Addr, 0)
 	for _, hostName := range hostNames {
 		addr, err := c.dnsProvider.LookupHost(ctx, hostName)
 		if err != nil {
+			if !errors.Is(err, dns.ErrNotFound) {
+				hostLogger.Warn("failed to lookup host", slog.String("host", hostName), slog.Any("err", err))
+			}
 			continue
 		}
-		// Now re-resolve the address to get the "real" DNS name
-		dnsName, err := c.dnsProvider.LookupAddress(ctx, addr)
-		if err == nil {
-			return addr, dnsName, nil
-		}
-		// In case the reverse lookup fails, keep the "guessed" host name
-		return addr, hostName, nil
+		addrs = append(addrs, addr)
 	}
-	return netip.Addr{}, "", cache.ErrNotFound
+	return addrs, nil
 }
 
-func (c *InfoCache) Lookup(ctx context.Context, query string) (*Info, bool) {
-	return c.cache.Get(ctx, query)
+func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress netip.Addr) (*Info, bool) {
+	hostAddrs, hit := c.hostCache.Get(ctx, host)
+	if !hit {
+		return nil, false
+	}
+	for _, hostAddr := range hostAddrs {
+		if hostAddr.Is4() && clientAddress.Is4() {
+			if c.matchAddrClass(hostAddr, clientAddress) {
+				return c.LookupAddress(ctx, hostAddr)
+			}
+		} else if c.matchAddrClass(hostAddr, clientAddress) {
+			return c.LookupAddress(ctx, hostAddr)
+		}
+	}
+	return nil, false
+}
+
+func (c *InfoCache) matchAddrClass(addr1 netip.Addr, addr2 netip.Addr) bool {
+	if addr1.IsLoopback() {
+		return addr2.IsLoopback()
+	} else if addr1.IsPrivate() {
+		return addr2.IsPrivate()
+	}
+	return true
+}
+
+func (c *InfoCache) LookupAddress(ctx context.Context, address netip.Addr) (*Info, bool) {
+	return c.infoCache.Get(ctx, address)
 }
 
 func (c *InfoCache) Close() error {

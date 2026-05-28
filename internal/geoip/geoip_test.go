@@ -26,8 +26,8 @@ import (
 	"github.com/maxmind/mmdbwriter"
 	"github.com/maxmind/mmdbwriter/mmdbtype"
 	"github.com/stretchr/testify/require"
-	"github.com/tdrn-org/netscanner/geoip"
-	"github.com/tdrn-org/netscanner/geoip/maxminddb"
+	"github.com/tdrn-org/netscanner/internal/geoip"
+	"github.com/tdrn-org/netscanner/internal/geoip/maxminddb"
 	"golang.org/x/text/language"
 )
 

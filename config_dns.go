@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/tdrn-org/netscanner/dns"
-	customdns "github.com/tdrn-org/netscanner/dns/custom"
-	systemdns "github.com/tdrn-org/netscanner/dns/system"
+	"github.com/tdrn-org/netscanner/internal/dns"
+	customdns "github.com/tdrn-org/netscanner/internal/dns/custom"
+	systemdns "github.com/tdrn-org/netscanner/internal/dns/system"
 )
 
 type DNSConfig struct {

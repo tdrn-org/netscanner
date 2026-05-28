@@ -26,11 +26,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tdrn-org/netscanner/dns"
-	"github.com/tdrn-org/netscanner/geoip"
 	"github.com/tdrn-org/netscanner/internal/arp"
 	"github.com/tdrn-org/netscanner/internal/cache"
 	"github.com/tdrn-org/netscanner/internal/cache/memory"
+	"github.com/tdrn-org/netscanner/internal/dns"
+	"github.com/tdrn-org/netscanner/internal/geoip"
 	"github.com/tdrn-org/netscanner/internal/i18n"
 	"github.com/tdrn-org/netscanner/network"
 )

@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tdrn-org/netscanner/dns"
-	"github.com/tdrn-org/netscanner/dns/custom"
-	"github.com/tdrn-org/netscanner/dns/system"
+	"github.com/tdrn-org/netscanner/internal/dns"
+	"github.com/tdrn-org/netscanner/internal/dns/custom"
+	"github.com/tdrn-org/netscanner/internal/dns/system"
 )
 
 func TestSystemProvider(t *testing.T) {

@@ -22,8 +22,8 @@ import (
 	"net/netip"
 
 	"github.com/tdrn-org/netscanner/config"
-	"github.com/tdrn-org/netscanner/geoip"
-	"github.com/tdrn-org/netscanner/geoip/maxminddb"
+	"github.com/tdrn-org/netscanner/internal/geoip"
+	"github.com/tdrn-org/netscanner/internal/geoip/maxminddb"
 )
 
 type GeoIPConfig struct {

@@ -25,7 +25,7 @@ import (
 
 	customdns "codeberg.org/miekg/dns"
 	"codeberg.org/miekg/dns/dnsutil"
-	"github.com/tdrn-org/netscanner/dns"
+	"github.com/tdrn-org/netscanner/internal/dns"
 )
 
 const ProviderName dns.ProviderName = "custom"

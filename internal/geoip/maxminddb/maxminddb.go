@@ -24,7 +24,7 @@ import (
 	"net/netip"
 
 	"github.com/oschwald/maxminddb-golang/v2"
-	"github.com/tdrn-org/netscanner/geoip"
+	"github.com/tdrn-org/netscanner/internal/geoip"
 	"golang.org/x/text/language"
 )
 

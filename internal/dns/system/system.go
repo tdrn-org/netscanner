@@ -24,7 +24,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/tdrn-org/netscanner/dns"
+	"github.com/tdrn-org/netscanner/internal/dns"
 )
 
 const ProviderName dns.ProviderName = "system"

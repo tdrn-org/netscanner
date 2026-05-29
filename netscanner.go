@@ -233,7 +233,7 @@ func (cmd *genTLSNodeCmd) Run(_ context.Context, args *cmdLine) error {
 	}
 	log.Notice(logger, fmt.Sprintf("CRT file    : '%s'", cmd.CRTFile))
 	log.Notice(logger, fmt.Sprintf("Organization: '%s'", cmd.ON))
-	log.Notice(logger, fmt.Sprintf("Common name : '%s'", cmd.ON))
+	log.Notice(logger, fmt.Sprintf("Common name : '%s'", cmd.CN))
 	log.Notice(logger, fmt.Sprintf("Validity    : %s", cmd.Validity.String()))
 	caCredentials, err := mtls.LoadCredentials(cmd.CACRTFile, cmd.CAKeyFile, "")
 	if err != nil {

@@ -33,7 +33,7 @@ type Cache struct {
 	cache                cache.KeyValue[netip.Addr, net.HardwareAddr]
 	ttl                  time.Duration
 	nextInterfaceRefresh time.Time
-	mutex                sync.RWMutex
+	mutex                sync.Mutex
 }
 
 func NewCache(ttl time.Duration) (*Cache, error) {
@@ -59,15 +59,13 @@ func (c *Cache) Put(ctx context.Context, address netip.Addr, hardwareAddress net
 }
 
 func (c *Cache) refreshInterfacesIfNeeded(ctx context.Context) {
-	c.mutex.RLock()
-	now := time.Now()
-	if now.Before(c.nextInterfaceRefresh) {
-		c.mutex.RUnlock()
-		return
-	}
-	c.mutex.RUnlock()
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
+
+	now := time.Now()
+	if now.Before(c.nextInterfaceRefresh) {
+		return
+	}
 	c.nextInterfaceRefresh = now.Add(c.ttl)
 	c.refreshInterfaces(ctx)
 }

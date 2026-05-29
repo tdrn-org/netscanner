@@ -123,6 +123,7 @@ func (c *Credentials) TLSConfig() (*tls.Config, error) {
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		RootCAs:      caPool,
 		ClientCAs:    caPool,
+		MinVersion:   tls.VersionTLS13,
 	}
 	return tlsConfig, nil
 }
@@ -276,7 +277,6 @@ func (o *NodeOptions) Generate() (*Credentials, error) {
 		DNSNames:     o.DNS,
 		NotBefore:    now,
 		NotAfter:     now.Add(o.Validity),
-		IsCA:         true,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 	}
@@ -315,11 +315,13 @@ const certificateBlock string = "CERTIFICATE"
 const privateKeyBlock string = "EC PRIVATE KEY"
 
 func generateSerial(random io.Reader) (*big.Int, error) {
-	serial, err := rand.Int(random, big.NewInt(90000))
+	one := big.NewInt(1)
+	max := big.NewInt(1).Lsh(one, 128)
+	serial, err := rand.Int(random, max)
 	if err != nil {
 		return nil, err
 	}
-	serial.Add(serial, big.NewInt(10000))
+	serial.Add(serial, one)
 	return serial, nil
 }
 

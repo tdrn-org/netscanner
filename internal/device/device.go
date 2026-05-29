@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +103,9 @@ func NewInfoCache(networks *network.Names, arpCache *arp.Cache, dnsProvider dns.
 		return nil, fmt.Errorf("failed to create device info cache (cause: %w)", err)
 	}
 	hostCache, err := memory.NewKeyValue(0, ttl, c.loadHost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create host cache (cause: %w)", err)
+	}
 	c.infoCache = infoCache
 	c.hostCache = hostCache
 	return c, nil
@@ -135,10 +139,11 @@ func (c *InfoCache) loadHost(ctx context.Context, host string) ([]netip.Addr, er
 	hostNames = append(hostNames, host)
 	if !strings.HasSuffix(host, ".") {
 		for _, dnsDomain := range c.dnsDomains {
-			hostNames = append(hostNames, host+"."+dnsDomain)
+			hostNames = append(hostNames, host+"."+strings.TrimPrefix(dnsDomain, "."))
 		}
 	}
 	addrs := make([]netip.Addr, 0)
+	slices.Sort(hostNames)
 	for _, hostName := range hostNames {
 		addr, err := c.dnsProvider.LookupHost(ctx, hostName)
 		if err != nil {
@@ -162,6 +167,7 @@ func (c *InfoCache) LookupHost(ctx context.Context, host string, clientAddress n
 	for _, hostAddr := range hostAddrs {
 		addrMatch := c.matchAddrs(clientAddress, hostAddr)
 		if addrMatch > match {
+			match = addrMatch
 			matchingHostAddr = hostAddr
 		}
 	}

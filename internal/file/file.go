@@ -71,7 +71,9 @@ func (s *Scanner[T]) Read() (int, T, error) {
 	read, err := s.decoder.Feed(s.file)
 	if err == io.EOF {
 		err = nil
-		s.delay = defaultReadDelay
+		if !s.seekIfTruncated() {
+			s.delay = defaultReadDelay
+		}
 	} else if err != nil {
 		return read, s.decoder.Nil(), err
 	}
@@ -106,9 +108,9 @@ func (s *Scanner[D]) ensureOpen() bool {
 		}
 		s.file = file
 		if s.tail {
-			_, err = file.Seek(0, 2)
+			_, err = file.Seek(0, io.SeekEnd)
 			if err != nil {
-				s.logger.Info("file seek failure; reopening file", slog.Any("cause", err))
+				s.logger.Info("file seek end failure; reopening file", slog.Any("cause", err))
 				s.triggerReopen(0)
 				return false
 			}
@@ -121,6 +123,31 @@ func (s *Scanner[D]) ensureOpen() bool {
 func (s *Scanner[D]) triggerReopen(delay time.Duration) {
 	s.close()
 	s.delay = delay
+}
+
+func (s *Scanner[D]) seekIfTruncated() bool {
+	info, err := s.file.Stat()
+	if err != nil {
+		s.logger.Info("file stat failure; reopening file", slog.Any("cause", err))
+		s.triggerReopen(0)
+		return true
+	}
+	off, err := s.file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		s.logger.Info("file seek current failure; reopening file", slog.Any("cause", err))
+		s.triggerReopen(0)
+		return true
+	}
+	if off <= info.Size() {
+		return false
+	}
+	s.logger.Info("file truncated; seeking to start")
+	_, err = s.file.Seek(0, io.SeekStart)
+	if err != nil {
+		s.logger.Info("file seek start failure; reopening file", slog.Any("cause", err))
+		s.triggerReopen(0)
+	}
+	return true
 }
 
 func (s *Scanner[D]) close() {

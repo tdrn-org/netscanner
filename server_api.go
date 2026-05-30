@@ -218,3 +218,14 @@ func (s *Server) sendAPIError(w http.ResponseWriter, r *http.Request, status int
 	}
 	http.Error(w, "server error", status)
 }
+
+// --- GET /api/v1/topology ---
+
+func (s *Server) handleTopologyGet(w http.ResponseWriter, r *http.Request) {
+	topology, err := s.GetTopology(r.Context())
+	if err != nil {
+		s.sendAPIError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+	s.sendAPIApplicationJSONResponse(w, r, http.StatusOK, topology)
+}

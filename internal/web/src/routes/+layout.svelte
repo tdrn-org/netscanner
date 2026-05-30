@@ -4,15 +4,16 @@
 	import { resolve } from '$app/paths';
 	import { m } from '$lib/i18n.js';
 	import type { Snippet } from 'svelte';
-	import { Activity, Wifi, Shield } from '@lucide/svelte';
+		import { Activity, Wifi, Shield, GitBranch } from '@lucide/svelte';
 
-	let { children }: { children: Snippet } = $props();
+let { children }: { children: Snippet } = $props();
 
-	const navItems = [
-		{ href: '/', label: m.nav_dashboard(), icon: Activity },
-		{ href: '/connections/', label: m.nav_connections(), icon: Wifi },
-		{ href: '/sensors/', label: m.nav_sensors(), icon: Shield }
-	];
+const navItems = [
+	{ href: '/', label: m.nav_dashboard(), icon: Activity },
+	{ href: '/connections/', label: m.nav_connections(), icon: Wifi },
+	{ href: '/topology/', label: 'Topology', icon: GitBranch },
+	{ href: '/sensors/', label: m.nav_sensors(), icon: Shield }
+];
 
 	function isActive(path: string): boolean {
 		const resolved = resolve(path);

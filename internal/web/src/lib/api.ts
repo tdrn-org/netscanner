@@ -1,5 +1,5 @@
 import { base } from '$app/paths';
-import type { SensorInfo, DeviceInfo, ConnectionInfo } from './types';
+import type { SensorInfo, DeviceInfo, ConnectionInfo, Topology } from './types';
 
 const BASE = `${base}/api/v1`;
 
@@ -14,5 +14,6 @@ export const api = {
 	sensors: () => get<SensorInfo[]>('/sensor'),
 	lmis: () => get<string[]>('/rules/lmi'),
 	device: (id: string) => get<DeviceInfo>(`/device/${id}`),
-	connections: () => get<ConnectionInfo[]>('/connection')
+	connections: () => get<ConnectionInfo[]>('/connection'),
+	topology: () => get<Topology>('/topology')
 };

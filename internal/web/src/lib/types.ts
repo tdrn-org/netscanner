@@ -30,3 +30,31 @@ export interface ConnectionInfo {
 	first: number;
 	last: number;
 }
+
+export interface TopologyNode {
+	id: string;
+	label: string;
+	address: string;
+	hardwareVendor?: string;
+	hardwareAddress?: string;
+	dns?: string;
+	network: string;
+	countryCode?: string;
+	lat: number;
+	lng: number;
+	type: 'client' | 'server' | 'both';
+	connectionCount: number;
+}
+
+export interface TopologyEdge {
+	source: string;
+	target: string;
+	service: string;
+	status: string;
+	count: number;
+}
+
+export interface Topology {
+	nodes: TopologyNode[];
+	edges: TopologyEdge[];
+}

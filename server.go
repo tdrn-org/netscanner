@@ -101,6 +101,7 @@ const apiPathSensorsV1 string = apiBasePathV1 + "/sensor"
 const apiPathLMIsV1 string = apiBasePathV1 + "/rules/lmi"
 const apiPathDeviceV1 string = apiBasePathV1 + "/device/{id}"
 const apiPathConnectionsV1 string = apiBasePathV1 + "/connection"
+const apiPathTopologyV1 string = apiBasePathV1 + "/topology"
 
 func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	s.logger.Info("starting HTTP server...")
@@ -119,6 +120,7 @@ func (s *Server) startHttpServer(ctx context.Context, config *Config) error {
 	httpServer.HandleFunc("GET "+basePath+apiPathLMIsV1, s.handleLMIsGet)
 	httpServer.HandleFunc("GET "+basePath+apiPathDeviceV1, s.handleDeviceGet)
 	httpServer.HandleFunc("GET "+basePath+apiPathConnectionsV1, s.handleConnectionsGet)
+	httpServer.HandleFunc("GET "+basePath+apiPathTopologyV1, s.handleTopologyGet)
 	s.httpServer = httpServer
 	if config.Server.PublicURL.URL != nil {
 		s.baseURL = config.Server.PublicURL.URL

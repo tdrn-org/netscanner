@@ -70,4 +70,4 @@ INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,ma
 INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','denied','Invalid user {User} from {IP} port');
 INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','denied','Connection reset by authenticating user {User} {IP} port');
 INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','error','Timeout before authentication for connection from {IP} to {Any}');
-INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','granted','Accepted publickey for {User} from {IP} port {Any} ssh2: RSA');
+INSERT INTO log_matcher_index_entry(log_matcher_index_name,service,event_type,match) VALUES('syslog1','sshd','granted','Accepted publickey for {User} from {IP} port {Any}');

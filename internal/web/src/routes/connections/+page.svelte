@@ -5,6 +5,7 @@
 	import { api } from '$lib/api.js';
 	import { mockConnections } from '$lib/mocks.js';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+	import { countryFlag } from '$lib/flag.js';
 	import { Wifi, MapPin, Monitor, Globe, ChevronDown, ChevronUp } from '@lucide/svelte';
 
 	let connections = $state<ConnectionInfo[]>([]);
@@ -30,7 +31,6 @@
 	}
 
 	function formatTime(ts: number): string {
-		// Backend sends UnixMicro (µs), JS Date expects milliseconds
 		return new Date(ts / 1000).toLocaleString('de-DE', {
 			day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
 		});
@@ -93,8 +93,12 @@
 									<ChevronDown class="h-4 w-4 text-stone-500" />
 								{/if}
 							</td>
-							<td class="px-4 py-3 font-mono text-xs text-stone-300">{conn.client.address}</td>
-							<td class="px-4 py-3 font-mono text-xs text-stone-300">{conn.server.address}</td>
+							<td class="px-4 py-3 text-xs text-stone-300">
+								{countryFlag(conn.client.country_code)} {conn.client.dns || conn.client.address}
+							</td>
+							<td class="px-4 py-3 text-xs text-stone-300">
+								{countryFlag(conn.server.country_code)} {conn.server.dns || conn.server.address}
+							</td>
 							<td class="px-4 py-3 text-stone-300">{conn.service}</td>
 							<td class="px-4 py-3"><StatusBadge status={conn.status} /></td>
 							<td class="px-4 py-3 text-right font-mono text-xs text-cyan-400">{conn.count}</td>
@@ -108,23 +112,20 @@
 										<div class="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4">
 											<div class="mb-2 flex items-center gap-2 text-xs font-medium text-stone-400">
 												<Monitor class="h-3.5 w-3.5" />
-												Client {conn.client.address}
+												{countryFlag(conn.client.country_code)} Client {conn.client.dns || conn.client.address}
 											</div>
 											<div class="space-y-1.5">
-												{#if conn.client.dns}
-													<p class="text-stone-300"><span class="text-stone-500">DNS:</span> {conn.client.dns}</p>
-												{/if}
-												{#if conn.client.hardware_vendor}
-													<p class="text-stone-300"><span class="text-stone-500">Vendor:</span> {conn.client.hardware_vendor}</p>
-												{/if}
 												{#if conn.client.hardware_address}
-													<p class="font-mono text-xs text-stone-300"><span class="text-stone-500">MAC:</span> {conn.client.hardware_address}</p>
+													<p class="font-mono text-xs text-stone-300">
+														<span class="text-stone-500">MAC:</span> {conn.client.hardware_address}
+														{#if conn.client.hardware_vendor} <span class="text-stone-500">({conn.client.hardware_vendor})</span>{/if}
+													</p>
 												{/if}
 												<p class="text-stone-300"><span class="text-stone-500">Network:</span> {conn.client.network}</p>
 												{#if conn.client.city}
 													<p class="flex items-center gap-1 text-stone-300">
 														<MapPin class="h-3 w-3 text-stone-500" />
-														{conn.client.city}, {conn.client.country}
+														{countryFlag(conn.client.country_code)} {conn.client.city}, {conn.client.country}
 														<span class="text-xs text-stone-500">({conn.client.lat.toFixed(2)}, {conn.client.lng.toFixed(2)})</span>
 													</p>
 												{/if}
@@ -134,23 +135,20 @@
 										<div class="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4">
 											<div class="mb-2 flex items-center gap-2 text-xs font-medium text-stone-400">
 												<Globe class="h-3.5 w-3.5" />
-												Server {conn.server.address}
+												{countryFlag(conn.server.country_code)} Server {conn.server.dns || conn.server.address}
 											</div>
 											<div class="space-y-1.5">
-												{#if conn.server.dns}
-													<p class="text-stone-300"><span class="text-stone-500">DNS:</span> {conn.server.dns}</p>
-												{/if}
-												{#if conn.server.hardware_vendor}
-													<p class="text-stone-300"><span class="text-stone-500">Vendor:</span> {conn.server.hardware_vendor}</p>
-												{/if}
 												{#if conn.server.hardware_address}
-													<p class="font-mono text-xs text-stone-300"><span class="text-stone-500">MAC:</span> {conn.server.hardware_address}</p>
+													<p class="font-mono text-xs text-stone-300">
+														<span class="text-stone-500">MAC:</span> {conn.server.hardware_address}
+														{#if conn.server.hardware_vendor} <span class="text-stone-500">({conn.server.hardware_vendor})</span>{/if}
+													</p>
 												{/if}
 												<p class="text-stone-300"><span class="text-stone-500">Network:</span> {conn.server.network}</p>
 												{#if conn.server.city}
 													<p class="flex items-center gap-1 text-stone-300">
 														<MapPin class="h-3 w-3 text-stone-500" />
-														{conn.server.city}, {conn.server.country}
+														{countryFlag(conn.server.country_code)} {conn.server.city}, {conn.server.country}
 														<span class="text-xs text-stone-500">({conn.server.lat.toFixed(2)}, {conn.server.lng.toFixed(2)})</span>
 													</p>
 												{/if}

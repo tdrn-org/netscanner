@@ -7,6 +7,7 @@
 	import { mockSensors, mockConnections } from '$lib/mocks.js';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { Activity, Wifi, Shield, ArrowUpRight } from '@lucide/svelte';
+	import { countryFlag } from '$lib/flag.js';
 
 	let sensors = $state<SensorInfo[]>([]);
 	let connections = $state<ConnectionInfo[]>([]);
@@ -127,8 +128,8 @@
 				<tbody class="divide-y divide-slate-700/30">
 					{#each recentConnections as conn (conn.id)}
 						<tr class="hover:bg-slate-800/50 transition-colors">
-							<td class="px-4 py-3 font-mono text-xs text-stone-300">{shortAddr(conn.client.address)}</td>
-							<td class="px-4 py-3 font-mono text-xs text-stone-300">{shortAddr(conn.server.address)}</td>
+							<td class="px-4 py-3 text-xs text-stone-300">{countryFlag(conn.client.country_code)} {conn.client.dns || shortAddr(conn.client.address)}</td>
+							<td class="px-4 py-3 text-xs text-stone-300">{countryFlag(conn.server.country_code)} {conn.server.dns || shortAddr(conn.server.address)}</td>
 							<td class="px-4 py-3 text-stone-300">{conn.service}</td>
 							<td class="px-4 py-3"><StatusBadge status={conn.status} /></td>
 							<td class="px-4 py-3 text-xs text-stone-400">{formatTime(conn.last)}</td>

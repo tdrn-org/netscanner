@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { TopologyNode, TopologyEdge } from '$lib/types';
+	import { countryFlag } from '$lib/flag.js';
 
 	interface Props {
 		nodes: TopologyNode[];
@@ -145,12 +146,7 @@
 		}
 	}
 
-	// Convert 2-letter country code to flag emoji (Unicode Regional Indicators)
-	function countryFlag(code: string): string {
-		if (!code || code.length !== 2) return '';
-		const a = '🇦'.codePointAt(0)!;
-		return String.fromCodePoint(a + code.charCodeAt(0) - 65, a + code.charCodeAt(1) - 65);
-	}
+	// Convert 2-letter country code to flag emoji (Unicode Regional Indicators) — imported from $lib/flag.js
 </script>
 
 <svg viewBox="0 0 {w} {h}" class="w-full h-auto rounded-lg" style="max-height:{height}px; background:#0f172a">

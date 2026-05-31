@@ -94,7 +94,7 @@ func (cmd *runCmd) Run(ctx context.Context, args *cmdLine) error {
 	}
 	stoppedWG := sync.WaitGroup{}
 	stoppedWG.Go(func() {
-		err = server.Run(ctx)
+		err = errors.Join(server.Run(ctx), server.Close())
 	})
 	go func() {
 		sigint := make(chan os.Signal, 1)
@@ -112,7 +112,7 @@ func (cmd *runCmd) Run(ctx context.Context, args *cmdLine) error {
 	if err == nil {
 		slog.Info("stopped")
 	}
-	return errors.Join(err, server.Close())
+	return err
 }
 
 func (cmd *runCmd) applyGlobalArgs(config *Config, args *cmdLine) {

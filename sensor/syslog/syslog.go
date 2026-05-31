@@ -24,6 +24,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/tdrn-org/go-log"
@@ -71,9 +72,10 @@ func ListenUDP(index *logmatcher.Index, network, address string) (Sensor, error)
 }
 
 type tcpSensor struct {
-	index    *logmatcher.Index
-	listener net.Listener
-	logger   *slog.Logger
+	index     *logmatcher.Index
+	listener  net.Listener
+	stoppedWG sync.WaitGroup
+	logger    *slog.Logger
 }
 
 func newTCPSensor(index *logmatcher.Index, proto string, listener net.Listener) Sensor {
@@ -95,6 +97,9 @@ func (s *tcpSensor) Name() string {
 }
 
 func (s *tcpSensor) Collect(receiver sensor.EventReceiver) error {
+	s.stoppedWG.Add(1)
+	defer s.stoppedWG.Done()
+
 	s.logger.Info("waiting for connections...")
 	for {
 		conn, err := s.listener.Accept()
@@ -130,11 +135,13 @@ func (s *tcpSensor) collectHandler(receiver sensor.EventReceiver, conn net.Conn)
 }
 
 func (s *tcpSensor) Shutdown(_ context.Context) error {
-	return nil
+	err := s.listener.Close()
+	s.stoppedWG.Wait()
+	return err
 }
 
 func (s *tcpSensor) Close() error {
-	return s.listener.Close()
+	return nil
 }
 
 type udpSensor struct {

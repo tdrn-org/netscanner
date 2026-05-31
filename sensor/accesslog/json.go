@@ -102,32 +102,34 @@ func (s *jsonAccesslogSensor) Name() string {
 
 func (s *jsonAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
 	s.stopFunc = stop
-	s.stoppedWG.Go(func() {
-		s.logger.Info("scanning...")
-		for ctx.Err() == nil {
-			_, object, err := s.scanner.Read()
-			if err != nil {
-				s.logger.Warn("scan failure", slog.Any("err", err))
-				continue
-			}
-			if object == nil {
-				continue
-			}
-			event, err := s.options.resolve(object)
-			if err != nil {
-				s.logger.Warn("resolve failure", slog.Any("err", err))
-				continue
-			}
-			if event == nil {
-				continue
-			}
-			event.Service = "http"
-			event.Sensor = Name
-			receiver.Queue(ctx, event)
+	s.stoppedWG.Add(1)
+	defer s.stoppedWG.Done()
+
+	s.logger.Info("scanning...")
+	for ctx.Err() == nil {
+		_, object, err := s.scanner.Read()
+		if err != nil {
+			s.logger.Warn("scan failure", slog.Any("err", err))
+			continue
 		}
-		s.logger.Info("stopping...")
-	})
+		if object == nil {
+			continue
+		}
+		event, err := s.options.resolve(object)
+		if err != nil {
+			s.logger.Warn("resolve failure", slog.Any("err", err))
+			continue
+		}
+		if event == nil {
+			continue
+		}
+		event.Service = "http"
+		event.Sensor = Name
+		receiver.Queue(ctx, event)
+	}
+	s.logger.Info("stopped")
 	return nil
 }
 

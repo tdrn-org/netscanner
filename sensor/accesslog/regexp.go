@@ -131,30 +131,30 @@ func (s *regexpAccesslogSensor) Name() string {
 func (s *regexpAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
-
 	s.stopFunc = stop
-	s.stoppedWG.Go(func() {
-		s.logger.Info("scanning...")
-		for ctx.Err() == nil {
-			_, match, err := s.scanner.Read()
-			if err != nil {
-				s.logger.Warn("scan failure", slog.Any("err", err))
-				continue
-			}
-			event, err := s.options.resolve(match)
-			if err != nil {
-				s.logger.Warn("resolve failure", slog.Any("err", err))
-				continue
-			}
-			if event == nil {
-				continue
-			}
-			event.Service = "http"
-			event.Sensor = Name
-			receiver.Queue(ctx, event)
+	s.stoppedWG.Add(1)
+	defer s.stoppedWG.Done()
+
+	s.logger.Info("scanning...")
+	for ctx.Err() == nil {
+		_, match, err := s.scanner.Read()
+		if err != nil {
+			s.logger.Warn("scan failure", slog.Any("err", err))
+			continue
 		}
-		s.logger.Info("stopping...")
-	})
+		event, err := s.options.resolve(match)
+		if err != nil {
+			s.logger.Warn("resolve failure", slog.Any("err", err))
+			continue
+		}
+		if event == nil {
+			continue
+		}
+		event.Service = "http"
+		event.Sensor = Name
+		receiver.Queue(ctx, event)
+	}
+	s.logger.Info("stopped")
 	return nil
 }
 

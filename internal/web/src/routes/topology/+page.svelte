@@ -1,12 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Topology } from '$lib/types';
+	import type { Topology, TopologyNode, TopologyEdge } from '$lib/types';
 	import { api } from '$lib/api';
 	import TopologyGraph from '$lib/components/TopologyGraph.svelte';
+	import { Filter } from '@lucide/svelte';
 
 	let topology = $state<Topology | null>(null);
 	let loading = $state(true);
 	let error = $state('');
+
+	// Filters
+	let filterNetwork = $state('');
+	let filterStatus = $state('');
+
+	// Available networks (collected from data)
+	let networks = $state<string[]>([]);
 
 	onMount(() => loadTopology());
 
@@ -15,11 +23,54 @@
 		error = '';
 		try {
 			topology = await api.topology();
+			// Collect unique networks
+			const netSet = new Set(topology.nodes.map(n => n.network).filter(Boolean));
+			networks = [...netSet].sort();
 		} catch (e: any) {
 			error = e.message;
 		} finally {
 			loading = false;
 		}
+	}
+
+	// Filtered nodes and edges
+	const filteredNodes = $derived(() => {
+		if (!topology) return [];
+		if (!filterNetwork && !filterStatus) return topology.nodes;
+
+		// Find node IDs that have at least one matching edge (when status filter active)
+		const connectedNodes = new Set<string>();
+		if (filterStatus) {
+			for (const edge of topology.edges) {
+				if (edge.status === filterStatus) {
+					connectedNodes.add(edge.source);
+					connectedNodes.add(edge.target);
+				}
+			}
+		}
+
+		return topology.nodes.filter(node => {
+			if (filterNetwork && node.network !== filterNetwork) return false;
+			if (filterStatus && !connectedNodes.has(node.id)) return false;
+			return true;
+		});
+	});
+
+	const filteredEdges = $derived(() => {
+		if (!topology) return [];
+		if (!filterStatus) return topology.edges;
+		return topology.edges.filter(e => e.status === filterStatus);
+	});
+
+	const nodeIds = $derived(new Set(filteredNodes.map(n => n.id)));
+
+	const visibleEdges = $derived(
+		filteredEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
+	);
+
+	function clearFilters() {
+		filterNetwork = '';
+		filterStatus = '';
 	}
 </script>
 
@@ -32,6 +83,35 @@
 	<p class="text-sm text-slate-500">Force-directed graph of recorded connections</p>
 </div>
 
+<!-- Filters -->
+<div class="mb-4 flex flex-wrap items-center gap-3">
+	<Filter class="h-4 w-4 text-stone-500" />
+	<select bind:value={filterNetwork}
+		class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-stone-300">
+		<option value="">Alle Netzwerke</option>
+		{#each networks as net}
+			<option value={net}>{net}</option>
+		{/each}
+	</select>
+	<select bind:value={filterStatus}
+		class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-stone-300">
+		<option value="">Alle Status</option>
+		<option value="granted">Erlaubt</option>
+		<option value="denied">Verweigert</option>
+		<option value="error">Fehler</option>
+		<option value="informational">Info</option>
+	</select>
+	{#if filterNetwork || filterStatus}
+		<button onclick={clearFilters}
+			class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors">
+			Filter löschen
+		</button>
+	{/if}
+	<span class="text-xs text-stone-600 ml-2">
+		{filteredNodes.length} Nodes, {visibleEdges.length} Edges
+	</span>
+</div>
+
 {#if loading}
 	<p class="text-slate-500">Loading topology...</p>
 {:else if error}
@@ -39,9 +119,9 @@
 		<p class="text-red-400">{error}</p>
 		<button class="btn btn-primary mt-2 text-sm" onclick={loadTopology}>Retry</button>
 	</div>
-{:else if topology && topology.nodes.length > 0}
+{:else if topology && filteredNodes.length > 0}
 	<div class="card p-2">
-		<TopologyGraph nodes={topology.nodes} edges={topology.edges} />
+		<TopologyGraph nodes={filteredNodes} edges={visibleEdges} />
 	</div>
 	<div class="mt-4 grid grid-cols-4 gap-3 text-xs text-slate-500">
 		<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#818cf8"></span> Server</div>

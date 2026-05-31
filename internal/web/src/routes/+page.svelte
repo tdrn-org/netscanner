@@ -24,7 +24,7 @@
 		try {
 			const [s, c] = await Promise.all([api.sensors(), api.connections()]);
 			sensors = s;
-			connections = c;
+			connections = c.items;
 		} catch {
 			sensors = mockSensors;
 			connections = mockConnections;

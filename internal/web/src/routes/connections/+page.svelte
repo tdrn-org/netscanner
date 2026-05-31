@@ -125,16 +125,12 @@
 			<option value="sshd">sshd</option>
 			<option value="dns">dns</option>
 		</select>
-		<span class="text-xs text-stone-600">Sort:</span>
-		<button onclick={() => toggleSort('last')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='last'?'bg-slate-800 text-cyan-400':''}">
-			Zeit {sortIcon('last')}
-		</button>
-		<button onclick={() => toggleSort('count')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='count'?'bg-slate-800 text-cyan-400':''}">
-			Anzahl {sortIcon('count')}
-		</button>
-		<button onclick={() => toggleSort('service')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='service'?'bg-slate-800 text-cyan-400':''}">
-			Dienst {sortIcon('service')}
-		</button>
+		{#if filterStatus || filterService}
+			<button onclick={() => { filterStatus = ''; filterService = ''; applyFilters(); }}
+				class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors">
+				Filter löschen
+			</button>
+		{/if}
 	</div>
 
 	{#if loading}
@@ -167,8 +163,16 @@
 						</th>
 						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_service()}</th>
 						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_status()}</th>
-						<th class="px-4 py-3 text-right font-medium text-stone-400">{m.connections_count()}</th>
-						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_last_seen()}</th>
+						<th class="px-4 py-3 text-right font-medium text-stone-400">
+							<button onclick={() => toggleSort('count')} class="hover:text-white transition-colors">
+								{m.connections_count()} {sortIcon('count')}
+							</button>
+						</th>
+						<th class="px-4 py-3 font-medium text-stone-400">
+							<button onclick={() => toggleSort('last')} class="hover:text-white transition-colors">
+								{m.connections_last_seen()} {sortIcon('last')}
+							</button>
+						</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-700/30">

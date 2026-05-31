@@ -1,9 +1,20 @@
+// Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+//
+// SPDX-License-Identifier: MPL-2.0
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, you can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// See the COPYRIGHT file distributed with this work for additional
+// information regarding copyright ownership.
+
 // dnstap: flexible, structured event replication format for DNS software
 //
 // This file contains the protobuf schemas for the "dnstap" structured event
 // replication format for DNS software.
 
-// Written in 2013-2025 by the dnstap contributors.
+// Written in 2013-2014 by Farsight Security, Inc.
 //
 // To the extent possible under law, the author(s) have dedicated all
 // copyright and related and neighboring rights to this file to the public
@@ -12,7 +23,7 @@
 // You should have received a copy of the CC0 Public Domain Dedication along
 // with this file. If not, see:
 //
-// <https://creativecommons.org/publicdomain/zero/1.0/>.
+// <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 syntax = "proto2";
 package dnstap;
@@ -65,14 +76,6 @@ enum SocketProtocol {
     DNSCryptUDP = 5; // DNSCrypt over UDP (https://dnscrypt.info/protocol)
     DNSCryptTCP = 6; // DNSCrypt over TCP (https://dnscrypt.info/protocol)
     DOQ = 7;         // DNS over QUIC (RFC 9250)
-}
-
-// HttpProtocol: the HTTP protocol version used to transport a DNS message over
-// an HTTP-based protocol such as DNS over HTTPS.
-enum HttpProtocol {
-    HTTP1 = 1; // HTTP/1
-    HTTP2 = 2; // HTTP/2
-    HTTP3 = 3; // HTTP/3
 }
 
 // Policy: information about any name server operator policy
@@ -293,10 +296,6 @@ message Message {
 
     // Operator policy applied to the processing of this message, if any.
     optional Policy             policy = 15;
-
-    // One of the HttpProtocol values described above. This field should only be
-    // set if socket_protocol is set to DOH.
-    optional HttpProtocol       http_protocol = 16;
 }
 
 // All fields except for 'type' in the Message schema are optional.

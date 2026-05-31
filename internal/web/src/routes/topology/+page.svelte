@@ -43,7 +43,10 @@
 			filteredEdges = [];
 			return;
 		}
-		const n = filterNetwork || filterStatus
+		// Network filter: only apply to the CLIENT side of edges.
+		// Servers always stay visible so internal infrastructure remains in focus.
+		// A node appears if it's a server in any visible edge, or a client in a matching edge.
+		const n = (filterNetwork || filterStatus)
 			? (() => {
 				const connectedNodes = new Set<string>();
 				if (filterStatus) {
@@ -54,8 +57,28 @@
 						}
 					}
 				}
+				// When network filter is active, find which nodes to show based on edges
+				const visibleNodes = new Set<string>();
+				if (filterNetwork) {
+					for (const edge of topology.edges) {
+						const edgeOk = !filterStatus || edge.status === filterStatus;
+						if (!edgeOk) continue;
+						// Client must match the network filter
+						const client = topology.nodes.find(nd => nd.id === edge.source);
+						if (client && client.network === filterNetwork) {
+							visibleNodes.add(edge.source);
+							visibleNodes.add(edge.target); // server always shown
+						}
+					}
+					// Also include nodes that are servers (type=server/both) — always visible
+					for (const node of topology.nodes) {
+						if (node.type === 'server' || node.type === 'both') {
+							visibleNodes.add(node.id);
+						}
+					}
+					return topology.nodes.filter(node => visibleNodes.has(node.id));
+				}
 				return topology.nodes.filter(node => {
-					if (filterNetwork && node.network !== filterNetwork) return false;
 					if (filterStatus && !connectedNodes.has(node.id)) return false;
 					return true;
 				});

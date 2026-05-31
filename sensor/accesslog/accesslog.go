@@ -56,6 +56,24 @@ func (o *ScanOptions) isIgnoreURI(uri string) bool {
 	return false
 }
 
+func (o *ScanOptions) mapHttpStatus(status int, uri string) sensor.EventType {
+	eventType := sensor.EventTypeInformational
+	switch {
+	case 200 <= status && status < 300:
+		if o.isAuthURI(uri) {
+			eventType = sensor.EventTypeGranted
+		}
+	case status == 401 || status == 404:
+		// considere these informational, as they occuring also during "normal" access patterns
+		break
+	case 400 <= status && status < 500:
+		eventType = sensor.EventTypeDenied
+	case 500 <= status && status < 600:
+		eventType = sensor.EventTypeError
+	}
+	return eventType
+}
+
 func ScanRegexp(path string, options *RegexpScanOptions) (Sensor, error) {
 	err := options.validate()
 	if err != nil {

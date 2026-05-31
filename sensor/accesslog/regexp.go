@@ -102,17 +102,7 @@ func (o *RegexpScanOptions) resolve(match []string) (*sensor.Event, error) {
 	if o.isIgnoreURI(uri) {
 		return nil, nil
 	}
-	eventType := sensor.EventTypeInformational
-	switch {
-	case 200 <= status && status < 300:
-		if o.isAuthURI(uri) {
-			eventType = sensor.EventTypeGranted
-		}
-	case 400 <= status && status < 500:
-		eventType = sensor.EventTypeDenied
-	case 500 <= status && status < 600:
-		eventType = sensor.EventTypeError
-	}
+	eventType := o.mapHttpStatus(int(status), uri)
 	event := &sensor.Event{
 		Timestamp: timestamp,
 		Type:      eventType,

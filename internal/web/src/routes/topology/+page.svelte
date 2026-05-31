@@ -33,32 +33,41 @@
 		}
 	}
 
-	// Filtered nodes and edges
-	const filteredNodes = $derived(() => {
-		if (!topology) return [] as TopologyNode[];
-		if (!filterNetwork && !filterStatus) return topology.nodes;
+	// Filtered nodes and edges — plain state, computed via $effect
+	let filteredNodes = $state<TopologyNode[]>([]);
+	let filteredEdges = $state<TopologyEdge[]>([]);
 
-		const connectedNodes = new Set<string>();
-		if (filterStatus) {
-			for (const edge of topology.edges) {
-				if (edge.status === filterStatus) {
-					connectedNodes.add(edge.source);
-					connectedNodes.add(edge.target);
-				}
-			}
+	$effect(() => {
+		if (!topology) {
+			filteredNodes = [];
+			filteredEdges = [];
+			return;
 		}
+		const n = filterNetwork || filterStatus
+			? (() => {
+				const connectedNodes = new Set<string>();
+				if (filterStatus) {
+					for (const edge of topology.edges) {
+						if (edge.status === filterStatus) {
+							connectedNodes.add(edge.source);
+							connectedNodes.add(edge.target);
+						}
+					}
+				}
+				return topology.nodes.filter(node => {
+					if (filterNetwork && node.network !== filterNetwork) return false;
+					if (filterStatus && !connectedNodes.has(node.id)) return false;
+					return true;
+				});
+			})()
+			: topology.nodes;
 
-		return topology.nodes.filter(node => {
-			if (filterNetwork && node.network !== filterNetwork) return false;
-			if (filterStatus && !connectedNodes.has(node.id)) return false;
-			return true;
-		});
-	});
+		const e = filterStatus
+			? topology.edges.filter(ed => ed.status === filterStatus)
+			: topology.edges;
 
-	const filteredEdges = $derived(() => {
-		if (!topology) return [] as TopologyEdge[];
-		if (!filterStatus) return topology.edges;
-		return topology.edges.filter(e => e.status === filterStatus);
+		filteredNodes = n;
+		filteredEdges = e;
 	});
 
 	function clearFilters() {
@@ -113,8 +122,10 @@
 		<button class="btn btn-primary mt-2 text-sm" onclick={loadTopology}>Retry</button>
 	</div>
 {:else if topology && filteredNodes.length > 0}
-	{@const nodeIds = new Set(filteredNodes.map(n => n.id))}
-	{@const visibleEdges = filteredEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))}
+	{@const visibleEdges = filteredEdges.filter(e => {
+		const ids = new Set(filteredNodes.map(n => n.id));
+		return ids.has(e.source) && ids.has(e.target);
+	})}
 	<div class="card p-2">
 		<TopologyGraph nodes={filteredNodes} edges={visibleEdges} />
 	</div>

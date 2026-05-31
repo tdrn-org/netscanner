@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package sensor;
+package sync;
 
 // Target package for generation
-option go_package = "./proto";
+option go_package = "./sync";
 
 import "google/protobuf/timestamp.proto";
 

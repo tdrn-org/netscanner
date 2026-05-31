@@ -4,7 +4,7 @@
 // 	protoc        v7.34.1
 // source: sensor.proto
 
-package proto
+package sync
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -81,7 +81,7 @@ type Event struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Host            string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
 	Timestamp       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	Type            EventType              `protobuf:"varint,3,opt,name=type,proto3,enum=sensor.EventType" json:"type,omitempty"`
+	Type            EventType              `protobuf:"varint,3,opt,name=type,proto3,enum=sync.EventType" json:"type,omitempty"`
 	Address         []byte                 `protobuf:"bytes,4,opt,name=address,proto3" json:"address,omitempty"`
 	HardwareAddress []byte                 `protobuf:"bytes,5,opt,name=hardware_address,json=hardwareAddress,proto3" json:"hardware_address,omitempty"`
 	User            string                 `protobuf:"bytes,6,opt,name=user,proto3" json:"user,omitempty"`
@@ -217,11 +217,11 @@ var File_sensor_proto protoreflect.FileDescriptor
 
 const file_sensor_proto_rawDesc = "" +
 	"\n" +
-	"\fsensor.proto\x12\x06sensor\x1a\x1fgoogle/protobuf/timestamp.proto\"\x87\x02\n" +
+	"\fsensor.proto\x12\x04sync\x1a\x1fgoogle/protobuf/timestamp.proto\"\x85\x02\n" +
 	"\x05Event\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x128\n" +
-	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12%\n" +
-	"\x04type\x18\x03 \x01(\x0e2\x11.sensor.EventTypeR\x04type\x12\x18\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12#\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x0f.sync.EventTypeR\x04type\x12\x18\n" +
 	"\aaddress\x18\x04 \x01(\fR\aaddress\x12)\n" +
 	"\x10hardware_address\x18\x05 \x01(\fR\x0fhardwareAddress\x12\x12\n" +
 	"\x04user\x18\x06 \x01(\tR\x04user\x12\x18\n" +
@@ -233,9 +233,9 @@ const file_sensor_proto_rawDesc = "" +
 	"\x18EVENT_TYPE_INFORMATIONAL\x10\x01\x12\x16\n" +
 	"\x12EVENT_TYPE_GRANTED\x10\x02\x12\x15\n" +
 	"\x11EVENT_TYPE_DENIED\x10\x03\x12\x14\n" +
-	"\x10EVENT_TYPE_ERROR\x10\x042B\n" +
-	"\rEventStreamer\x121\n" +
-	"\tSendEvent\x12\r.sensor.Event\x1a\x15.sensor.EmptyResponseB\tZ\a./protob\x06proto3"
+	"\x10EVENT_TYPE_ERROR\x10\x042>\n" +
+	"\rEventStreamer\x12-\n" +
+	"\tSendEvent\x12\v.sync.Event\x1a\x13.sync.EmptyResponseB\bZ\x06./syncb\x06proto3"
 
 var (
 	file_sensor_proto_rawDescOnce sync.Once
@@ -252,16 +252,16 @@ func file_sensor_proto_rawDescGZIP() []byte {
 var file_sensor_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_sensor_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_sensor_proto_goTypes = []any{
-	(EventType)(0),                // 0: sensor.EventType
-	(*Event)(nil),                 // 1: sensor.Event
-	(*EmptyResponse)(nil),         // 2: sensor.EmptyResponse
+	(EventType)(0),                // 0: sync.EventType
+	(*Event)(nil),                 // 1: sync.Event
+	(*EmptyResponse)(nil),         // 2: sync.EmptyResponse
 	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_sensor_proto_depIdxs = []int32{
-	3, // 0: sensor.Event.timestamp:type_name -> google.protobuf.Timestamp
-	0, // 1: sensor.Event.type:type_name -> sensor.EventType
-	1, // 2: sensor.EventStreamer.SendEvent:input_type -> sensor.Event
-	2, // 3: sensor.EventStreamer.SendEvent:output_type -> sensor.EmptyResponse
+	3, // 0: sync.Event.timestamp:type_name -> google.protobuf.Timestamp
+	0, // 1: sync.Event.type:type_name -> sync.EventType
+	1, // 2: sync.EventStreamer.SendEvent:input_type -> sync.Event
+	2, // 3: sync.EventStreamer.SendEvent:output_type -> sync.EmptyResponse
 	3, // [3:4] is the sub-list for method output_type
 	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

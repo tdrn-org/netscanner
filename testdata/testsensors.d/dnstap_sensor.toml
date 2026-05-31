@@ -1,0 +1,3 @@
+[dnstap_sensor]
+name = "dnstap1"
+file = "/var/log/named/dnstap.log"

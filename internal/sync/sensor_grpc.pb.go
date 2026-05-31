@@ -4,7 +4,7 @@
 // - protoc             v7.34.1
 // source: sensor.proto
 
-package proto
+package sync
 
 import (
 	context "context"
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EventStreamer_SendEvent_FullMethodName = "/sensor.EventStreamer/SendEvent"
+	EventStreamer_SendEvent_FullMethodName = "/sync.EventStreamer/SendEvent"
 )
 
 // EventStreamerClient is the client API for EventStreamer service.
@@ -108,7 +108,7 @@ func _EventStreamer_SendEvent_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var EventStreamer_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sensor.EventStreamer",
+	ServiceName: "sync.EventStreamer",
 	HandlerType: (*EventStreamerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

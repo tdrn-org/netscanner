@@ -24,18 +24,18 @@ import (
 
 // TopologyNode represents a device in the network topology.
 type TopologyNode struct {
-	ID              string `json:"id"`
-	Label           string `json:"label"`
-	Address         string `json:"address"`
-	HardwareVendor  string `json:"hardwareVendor,omitempty"`
-	HardwareAddress string `json:"hardwareAddress,omitempty"`
-	DNS             string `json:"dns,omitempty"`
-	Network         string `json:"network"`
-	CountryCode     string `json:"countryCode,omitempty"`
+	ID              string  `json:"id"`
+	Label           string  `json:"label"`
+	Address         string  `json:"address"`
+	HardwareVendor  string  `json:"hardwareVendor,omitempty"`
+	HardwareAddress string  `json:"hardwareAddress,omitempty"`
+	DNS             string  `json:"dns,omitempty"`
+	Network         string  `json:"network"`
+	CountryCode     string  `json:"countryCode,omitempty"`
 	Lat             float64 `json:"lat"`
 	Lng             float64 `json:"lng"`
-	NodeType        string `json:"type"` // "client", "server", "both"
-	ConnectionCount int    `json:"connectionCount"`
+	NodeType        string  `json:"type"` // "client", "server", "both"
+	ConnectionCount int     `json:"connectionCount"`
 }
 
 // TopologyEdge represents a connection between two devices.

@@ -25,7 +25,6 @@ import (
 	"net/netip"
 
 	"github.com/tdrn-org/netscanner/internal/mtls"
-	"github.com/tdrn-org/netscanner/internal/sync/proto"
 	"github.com/tdrn-org/netscanner/sensor"
 	"google.golang.org/grpc"
 	grpccredentials "google.golang.org/grpc/credentials"
@@ -56,13 +55,13 @@ func StartReceive(address string, credentials *mtls.Credentials, receiver sensor
 		receiver: receiver,
 		logger:   logger,
 	}
-	proto.RegisterEventStreamerServer(server, handler)
+	RegisterEventStreamerServer(server, handler)
 	go handler.Serve()
 	return handler, nil
 }
 
 type receiveHandler struct {
-	proto.UnimplementedEventStreamerServer
+	UnimplementedEventStreamerServer
 	server   *grpc.Server
 	listener net.Listener
 	receiver sensor.EventReceiver
@@ -79,17 +78,17 @@ func (h *receiveHandler) Serve() {
 	}
 }
 
-var sensorEventTypeMap map[proto.EventType]sensor.EventType = map[proto.EventType]sensor.EventType{
-	proto.EventType_EVENT_TYPE_INFORMATIONAL: sensor.EventTypeInformational,
-	proto.EventType_EVENT_TYPE_GRANTED:       sensor.EventTypeGranted,
-	proto.EventType_EVENT_TYPE_DENIED:        sensor.EventTypeDenied,
-	proto.EventType_EVENT_TYPE_ERROR:         sensor.EventTypeError,
+var sensorEventTypeMap map[EventType]sensor.EventType = map[EventType]sensor.EventType{
+	EventType_EVENT_TYPE_INFORMATIONAL: sensor.EventTypeInformational,
+	EventType_EVENT_TYPE_GRANTED:       sensor.EventTypeGranted,
+	EventType_EVENT_TYPE_DENIED:        sensor.EventTypeDenied,
+	EventType_EVENT_TYPE_ERROR:         sensor.EventTypeError,
 }
 
-func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*proto.EmptyResponse, error) {
+func (h *receiveHandler) SendEvent(ctx context.Context, event *Event) (*EmptyResponse, error) {
 	sensorEventType, ok := sensorEventTypeMap[event.Type]
 	if !ok {
-		return &proto.EmptyResponse{}, fmt.Errorf("unrecognized event type: %s", event.Type)
+		return &EmptyResponse{}, fmt.Errorf("unrecognized event type: %s", event.Type)
 	}
 	var address netip.Addr
 	switch len(event.Address) {
@@ -98,7 +97,7 @@ func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*pr
 	case 16:
 		address = netip.AddrFrom16([16]byte(event.Address))
 	default:
-		return &proto.EmptyResponse{}, fmt.Errorf("unexpected address lenght: %d", len(event.Address))
+		return &EmptyResponse{}, fmt.Errorf("unexpected address lenght: %d", len(event.Address))
 	}
 	sensorEvent := &sensor.Event{
 		Host:            event.Host,
@@ -111,7 +110,7 @@ func (h *receiveHandler) SendEvent(ctx context.Context, event *proto.Event) (*pr
 		Sensor:          event.Sensor,
 	}
 	h.receiver.Queue(ctx, sensorEvent)
-	return &proto.EmptyResponse{}, nil
+	return &EmptyResponse{}, nil
 }
 
 func (h *receiveHandler) Queue(ctx context.Context, event *sensor.Event) {
@@ -151,7 +150,7 @@ func StartForward(address string, credentials *mtls.Credentials) (Handler, error
 	logger := slog.With(slog.String("sync", "forward"), slog.String("address", address))
 	handler := &forwardHandler{
 		conn:   conn,
-		client: proto.NewEventStreamerClient(conn),
+		client: NewEventStreamerClient(conn),
 		logger: logger,
 	}
 	return handler, nil
@@ -159,15 +158,15 @@ func StartForward(address string, credentials *mtls.Credentials) (Handler, error
 
 type forwardHandler struct {
 	conn   *grpc.ClientConn
-	client proto.EventStreamerClient
+	client EventStreamerClient
 	logger *slog.Logger
 }
 
-var protoEventTypeMap map[sensor.EventType]proto.EventType = map[sensor.EventType]proto.EventType{
-	sensor.EventTypeInformational: proto.EventType_EVENT_TYPE_INFORMATIONAL,
-	sensor.EventTypeGranted:       proto.EventType_EVENT_TYPE_GRANTED,
-	sensor.EventTypeDenied:        proto.EventType_EVENT_TYPE_DENIED,
-	sensor.EventTypeError:         proto.EventType_EVENT_TYPE_ERROR,
+var protoEventTypeMap map[sensor.EventType]EventType = map[sensor.EventType]EventType{
+	sensor.EventTypeInformational: EventType_EVENT_TYPE_INFORMATIONAL,
+	sensor.EventTypeGranted:       EventType_EVENT_TYPE_GRANTED,
+	sensor.EventTypeDenied:        EventType_EVENT_TYPE_DENIED,
+	sensor.EventTypeError:         EventType_EVENT_TYPE_ERROR,
 }
 
 func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
@@ -176,7 +175,7 @@ func (h *forwardHandler) Queue(ctx context.Context, event *sensor.Event) {
 		h.logger.Warn("unrecognized event type", slog.String("type", string(event.Type)))
 		return
 	}
-	req := &proto.Event{
+	req := &Event{
 		Host:            event.Host,
 		Timestamp:       timestamppb.New(event.Timestamp),
 		Type:            protoEventType,

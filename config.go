@@ -100,6 +100,12 @@ type SensorConfig struct {
 	SyslogSensor    *SyslogSensorConfig    `toml:"syslog_sensor"`
 	LogfileSensor   *LogfileSensorConfig   `toml:"logfile_sensor"`
 	AccesslogSensor *AccesslogSensorConfig `toml:"accesslog_sensor"`
+	DnstapSensor    *DnstapSensorConfig    `toml:"dnstap_sensor"`
+}
+
+type DnstapSensorConfig struct {
+	Name string `toml:"name"`
+	File string `toml:"file"`
 }
 
 func (c *SensorConfig) validate() error {
@@ -111,6 +117,9 @@ func (c *SensorConfig) validate() error {
 		sensorCount++
 	}
 	if c.AccesslogSensor != nil {
+		sensorCount++
+	}
+	if c.DnstapSensor != nil {
 		sensorCount++
 	}
 	switch sensorCount {
@@ -132,6 +141,9 @@ func (c *SensorConfig) String() string {
 	}
 	if c.AccesslogSensor != nil {
 		return c.AccesslogSensor.String()
+	}
+	if c.DnstapSensor != nil {
+		return fmt.Sprintf(sensorStringFormatPath, "dnstap", c.DnstapSensor.Name, c.DnstapSensor.File)
 	}
 	return ""
 }

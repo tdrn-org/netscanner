@@ -53,6 +53,9 @@ func (s *Server) AddSensor(ctx context.Context, config *SensorConfig) (*sensor.S
 	if config.AccesslogSensor != nil {
 		return s.addAccesslogSensor(ctx, config.AccesslogSensor)
 	}
+	if config.DnstapSensor != nil {
+		return s.addDnstapSensor(ctx, config.DnstapSensor)
+	}
 	return nil, fmt.Errorf("empty sensor configuration")
 }
 

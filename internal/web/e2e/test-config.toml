@@ -1,0 +1,24 @@
+# Minimal config for e2e tests
+[Server]
+Address = ":9123"
+
+[Logging]
+Level = "error"
+
+[Datastore]
+File = ":memory:"
+
+[DNS]
+Enabled = false
+
+[GeoIP]
+Enabled = false
+
+[ARP]
+Enabled = false
+
+[Metrics]
+Enabled = false
+
+[Sync]
+Enabled = false

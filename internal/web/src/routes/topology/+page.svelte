@@ -35,10 +35,9 @@
 
 	// Filtered nodes and edges
 	const filteredNodes = $derived(() => {
-		if (!topology) return [];
+		if (!topology) return [] as TopologyNode[];
 		if (!filterNetwork && !filterStatus) return topology.nodes;
 
-		// Find node IDs that have at least one matching edge (when status filter active)
 		const connectedNodes = new Set<string>();
 		if (filterStatus) {
 			for (const edge of topology.edges) {
@@ -57,16 +56,20 @@
 	});
 
 	const filteredEdges = $derived(() => {
-		if (!topology) return [];
+		if (!topology) return [] as TopologyEdge[];
 		if (!filterStatus) return topology.edges;
 		return topology.edges.filter(e => e.status === filterStatus);
 	});
 
-	const nodeIds = $derived(new Set(filteredNodes.map(n => n.id)));
-
-	const visibleEdges = $derived(
-		filteredEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
-	);
+	const visible = $derived(() => {
+		const n = filteredNodes;
+		const e = filteredEdges;
+		const ids = new Set(n.map(nd => nd.id));
+		return {
+			nodes: n,
+			edges: e.filter(ed => ids.has(ed.source) && ids.has(ed.target))
+		};
+	});
 
 	function clearFilters() {
 		filterNetwork = '';
@@ -108,7 +111,7 @@
 		</button>
 	{/if}
 	<span class="text-xs text-stone-600 ml-2">
-		{filteredNodes.length} Nodes, {visibleEdges.length} Edges
+		{visible.nodes.length} Nodes, {visible.edges.length} Edges
 	</span>
 </div>
 
@@ -119,9 +122,9 @@
 		<p class="text-red-400">{error}</p>
 		<button class="btn btn-primary mt-2 text-sm" onclick={loadTopology}>Retry</button>
 	</div>
-{:else if topology && filteredNodes.length > 0}
+{:else if topology && visible.nodes.length > 0}
 	<div class="card p-2">
-		<TopologyGraph nodes={filteredNodes} edges={visibleEdges} />
+		<TopologyGraph nodes={visible.nodes} edges={visible.edges} />
 	</div>
 	<div class="mt-4 grid grid-cols-4 gap-3 text-xs text-slate-500">
 		<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#818cf8"></span> Server</div>

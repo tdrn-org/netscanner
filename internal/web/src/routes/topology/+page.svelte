@@ -61,16 +61,6 @@
 		return topology.edges.filter(e => e.status === filterStatus);
 	});
 
-	const visible = $derived(() => {
-		const n = filteredNodes;
-		const e = filteredEdges;
-		const ids = new Set(n.map(nd => nd.id));
-		return {
-			nodes: n,
-			edges: e.filter(ed => ids.has(ed.source) && ids.has(ed.target))
-		};
-	});
-
 	function clearFilters() {
 		filterNetwork = '';
 		filterStatus = '';
@@ -111,7 +101,7 @@
 		</button>
 	{/if}
 	<span class="text-xs text-stone-600 ml-2">
-		{visible.nodes.length} Nodes, {visible.edges.length} Edges
+		{filteredNodes.length} Nodes, {filteredEdges.length} Edges
 	</span>
 </div>
 
@@ -122,9 +112,11 @@
 		<p class="text-red-400">{error}</p>
 		<button class="btn btn-primary mt-2 text-sm" onclick={loadTopology}>Retry</button>
 	</div>
-{:else if topology && visible.nodes.length > 0}
+{:else if topology && filteredNodes.length > 0}
+	{@const nodeIds = new Set(filteredNodes.map(n => n.id))}
+	{@const visibleEdges = filteredEdges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))}
 	<div class="card p-2">
-		<TopologyGraph nodes={visible.nodes} edges={visible.edges} />
+		<TopologyGraph nodes={filteredNodes} edges={visibleEdges} />
 	</div>
 	<div class="mt-4 grid grid-cols-4 gap-3 text-xs text-slate-500">
 		<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#818cf8"></span> Server</div>

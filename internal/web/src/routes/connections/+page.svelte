@@ -1,29 +1,83 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { m } from '$lib/i18n.js';
-	import type { ConnectionInfo } from '$lib/types.js';
+	import type { ConnectionInfo, ConnectionPage } from '$lib/types.js';
 	import { api } from '$lib/api.js';
 	import { mockConnections } from '$lib/mocks.js';
 	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 	import { countryFlag } from '$lib/flag.js';
-	import { Wifi, MapPin, Monitor, Globe, ChevronDown, ChevronUp } from '@lucide/svelte';
+	import { Wifi, MapPin, Monitor, Globe, ChevronDown, ChevronUp, Filter, ArrowUpDown } from '@lucide/svelte';
 
+	let page = $state<ConnectionPage | null>(null);
 	let connections = $state<ConnectionInfo[]>([]);
 	let loading = $state(true);
+	let loadingMore = $state(false);
 	let expandedRow = $state<string | null>(null);
+	let cursor = $state('');
+	let hasMore = $state(false);
+	let total = $state(0);
 
-	onMount(() => {
-		loadData();
-	});
+	// Filters
+	let filterStatus = $state('');
+	let filterService = $state('');
+	let sortField = $state('last');
+	let sortOrder = $state('desc');
 
-	async function loadData() {
-		loading = true;
+	onMount(() => loadData());
+
+	async function loadData(reset = true) {
+		if (reset) {
+			loading = true;
+			cursor = '';
+			connections = [];
+		}
+		const params: Record<string, string> = { limit: '50' };
+		if (cursor) params.cursor = cursor;
+		if (filterStatus) params.status = filterStatus;
+		if (filterService) params.service = filterService;
+		if (sortField) params.sort = sortField;
+		if (sortOrder) params.order = sortOrder;
+
 		try {
-			connections = await api.connections();
+			page = await api.connections(params);
+			if (reset) {
+				connections = page.items;
+			} else {
+				connections = [...connections, ...page.items];
+			}
+			hasMore = page.has_more;
+			total = page.total;
+			if (page.next_cursor) cursor = page.next_cursor;
 		} catch {
-			connections = mockConnections;
+			if (reset) connections = mockConnections;
 		}
 		loading = false;
+		loadingMore = false;
+	}
+
+	function applyFilters() {
+		cursor = '';
+		loadData(true);
+	}
+
+	function loadMore() {
+		loadingMore = true;
+		loadData(false);
+	}
+
+	function toggleSort(field: string) {
+		if (sortField === field) {
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortField = field;
+			sortOrder = 'desc';
+		}
+		applyFilters();
+	}
+
+	function sortIcon(field: string): string {
+		if (sortField !== field) return '↕';
+		return sortOrder === 'asc' ? '↑' : '↓';
 	}
 
 	function toggleRow(id: string) {
@@ -41,15 +95,45 @@
 	<div class="mb-6 flex items-center justify-between">
 		<div>
 			<h1 class="text-2xl font-bold text-white">{m.connections_title()}</h1>
-			<p class="mt-1 text-sm text-stone-400">{connections.length} Einträge</p>
+			<p class="mt-1 text-sm text-stone-400">{total} Einträge{filterStatus || filterService ? ' (gefiltert)' : ''}</p>
 		</div>
 		<button
-			onclick={loadData}
+			onclick={applyFilters}
 			class="flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-stone-300 hover:bg-slate-800 hover:text-white transition-colors"
 			disabled={loading}
 		>
 			<Wifi class="h-4 w-4" />
 			{m.refresh()}
+		</button>
+	</div>
+
+	<!-- Filters -->
+	<div class="mb-4 flex flex-wrap items-center gap-3">
+		<Filter class="h-4 w-4 text-stone-500" />
+		<select bind:value={filterStatus} onchange={applyFilters}
+			class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-stone-300">
+			<option value="">Alle Status</option>
+			<option value="granted">Erlaubt</option>
+			<option value="denied">Verweigert</option>
+			<option value="error">Fehler</option>
+			<option value="informational">Info</option>
+		</select>
+		<select bind:value={filterService} onchange={applyFilters}
+			class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-stone-300">
+			<option value="">Alle Dienste</option>
+			<option value="http">http</option>
+			<option value="sshd">sshd</option>
+			<option value="dns">dns</option>
+		</select>
+		<span class="text-xs text-stone-600">Sort:</span>
+		<button onclick={() => toggleSort('last')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='last'?'bg-slate-800 text-cyan-400':''}">
+			Zeit {sortIcon('last')}
+		</button>
+		<button onclick={() => toggleSort('count')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='count'?'bg-slate-800 text-cyan-400':''}">
+			Anzahl {sortIcon('count')}
+		</button>
+		<button onclick={() => toggleSort('service')} class="text-xs text-stone-400 hover:text-white px-2 py-1 rounded {sortField==='service'?'bg-slate-800 text-cyan-400':''}">
+			Dienst {sortIcon('service')}
 		</button>
 	</div>
 
@@ -71,8 +155,16 @@
 				<thead>
 					<tr class="border-b border-slate-700/50 bg-slate-900">
 						<th class="w-8 px-4 py-3"></th>
-						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_client()}</th>
-						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_server()}</th>
+						<th class="px-4 py-3 font-medium text-stone-400">
+							<button onclick={() => toggleSort('client')} class="hover:text-white transition-colors">
+								{m.connections_client()} {sortIcon('client')}
+							</button>
+						</th>
+						<th class="px-4 py-3 font-medium text-stone-400">
+							<button onclick={() => toggleSort('server')} class="hover:text-white transition-colors">
+								{m.connections_server()} {sortIcon('server')}
+							</button>
+						</th>
 						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_service()}</th>
 						<th class="px-4 py-3 font-medium text-stone-400">{m.connections_status()}</th>
 						<th class="px-4 py-3 text-right font-medium text-stone-400">{m.connections_count()}</th>
@@ -108,7 +200,6 @@
 							<tr class="bg-slate-800/20">
 								<td colspan="7" class="px-4 py-4">
 									<div class="grid gap-4 text-sm sm:grid-cols-2">
-										<!-- Client Details -->
 										<div class="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4">
 											<div class="mb-2 flex items-center gap-2 text-xs font-medium text-stone-400">
 												<Monitor class="h-3.5 w-3.5" />
@@ -131,7 +222,6 @@
 												{/if}
 											</div>
 										</div>
-										<!-- Server Details -->
 										<div class="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4">
 											<div class="mb-2 flex items-center gap-2 text-xs font-medium text-stone-400">
 												<Globe class="h-3.5 w-3.5" />
@@ -166,5 +256,18 @@
 				</tbody>
 			</table>
 		</div>
+
+		<!-- Load more -->
+		{#if hasMore}
+			<div class="mt-4 text-center">
+				<button
+					onclick={loadMore}
+					disabled={loadingMore}
+					class="rounded-lg border border-slate-700 px-6 py-2.5 text-sm font-medium text-stone-300 hover:bg-slate-800 hover:text-white transition-colors disabled:opacity-50"
+				>
+					{loadingMore ? 'Lade...' : `${connections.length} von ${total} — Mehr laden`}
+				</button>
+			</div>
+		{/if}
 	{/if}
 </div>

@@ -31,6 +31,13 @@ export interface ConnectionInfo {
 	last: number;
 }
 
+export interface ConnectionPage {
+	items: ConnectionInfo[];
+	next_cursor: string;
+	has_more: boolean;
+	total: number;
+}
+
 export interface TopologyNode {
 	id: string;
 	label: string;

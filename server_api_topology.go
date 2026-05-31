@@ -55,10 +55,11 @@ type Topology struct {
 
 // GetTopology builds a topology graph from recorded connections.
 func (s *Server) GetTopology(ctx context.Context) (*Topology, error) {
-	connections, err := s.ListConnections(ctx)
+	page, err := s.ListConnections(ctx, ConnectionQuery{Limit: 0}) // 0 = no limit
 	if err != nil {
 		return nil, fmt.Errorf("failed to get topology (cause: %w)", err)
 	}
+	connections := page.Items
 
 	// Build node map (deduplicate by address)
 	nodeMap := make(map[string]*TopologyNode)

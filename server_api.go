@@ -182,16 +182,16 @@ type ConnectionInfo struct {
 //	@Failure		500	{string}	string	"nok"
 //	@Router			/api/v1/connection [get]
 func (s *Server) handleConnectionsGet(w http.ResponseWriter, r *http.Request) {
-	conncetionInfos, err := s.ListConnections(r.Context())
+	q := parseConnectionQuery(r)
+	page, err := s.ListConnections(r.Context(), q)
 	if err != nil {
 		s.sendAPIError(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(conncetionInfos)
-	if err != nil {
-		s.sendAPIError(w, r, http.StatusInternalServerError, err)
-		return
+	if page.Items == nil {
+		page.Items = []*ConnectionInfo{}
 	}
+	s.sendAPIApplicationJSONResponse(w, r, http.StatusOK, page)
 }
 
 func (s *Server) sendAPIApplicationJSONResponse(w http.ResponseWriter, r *http.Request, status int, content any) {

@@ -27,6 +27,17 @@ import (
 	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
+type SyslogSensorConfig struct {
+	Name            string        `toml:"name"`
+	Network         SyslogNetwork `toml:"network"`
+	Address         string        `toml:"address"`
+	LogMatcherIndex string        `toml:"log_matcher_index"`
+}
+
+func (c *SyslogSensorConfig) String() string {
+	return fmt.Sprintf(sensorStringFormatURL, syslog.Name, c.Name, c.Network, c.Address)
+}
+
 func (s *Server) addSyslogSensor(ctx context.Context, config *SyslogSensorConfig) (*sensor.Sensor, error) {
 	s.logger.Info("adding sensor", slog.Any("sensor", config))
 	index, err := s.resolveLogMatcherIndex(ctx, config.LogMatcherIndex)

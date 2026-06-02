@@ -95,11 +95,11 @@ func (s *Scanner[T]) Close() error {
 	return s.file.Close()
 }
 
-const defaultReadDelay time.Duration = 250 * time.Millisecond
+const defaultReadDelay time.Duration = 500 * time.Millisecond
 
 func (s *Scanner[D]) ensureOpen() bool {
 	if s.file == nil {
-		s.logger.Debug("opening file...")
+		s.logger.Info("opening file...")
 		file, err := os.Open(s.path)
 		if err != nil {
 			s.logger.Info("file not accessible; retrying after delay", slog.Any("cause", err))
@@ -152,7 +152,7 @@ func (s *Scanner[D]) seekIfTruncated() bool {
 
 func (s *Scanner[D]) close() {
 	if s.file != nil {
-		s.logger.Debug("closing file...")
+		s.logger.Info("closing file...")
 		err := s.file.Close()
 		if err != nil {
 			s.logger.Warn("close file failure", slog.Any("err", err))

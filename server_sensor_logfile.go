@@ -18,11 +18,41 @@ package netscanner
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	"github.com/tdrn-org/netscanner/config"
 	"github.com/tdrn-org/netscanner/sensor"
 	"github.com/tdrn-org/netscanner/sensor/logfile"
 )
+
+type LogfileSensorConfig struct {
+	Name            string `toml:"name"`
+	Path            string `toml:"path"`
+	LogMatcherIndex string `toml:"log_matcher_index"`
+	Regexp          struct {
+		Pattern         config.RegexpSpec `toml:"pattern"`
+		TimestampField  int               `toml:"timestamp_field"`
+		TimestampLayout string            `toml:"timestamp_layout"`
+		HostField       int               `toml:"host_field"`
+		MessageField    int               `toml:"message_field"`
+	} `toml:"regexp"`
+}
+
+func (c *LogfileSensorConfig) String() string {
+	return fmt.Sprintf(sensorStringFormatPath, logfile.Name, c.Name, c.Path)
+}
+
+func (c *LogfileSensorConfig) regexpScanOptions() *logfile.RegexpScanOptions {
+	return &logfile.RegexpScanOptions{
+		Pattern:         c.Regexp.Pattern.Regexp,
+		TimestampField:  c.Regexp.TimestampField,
+		TimestampLayout: c.Regexp.TimestampLayout,
+		HostField:       c.Regexp.HostField,
+		MessageField:    c.Regexp.MessageField,
+		Tail:            true, // for now we default to true (accept misses; before duplicates)
+	}
+}
 
 func (s *Server) addLogfileSensor(ctx context.Context, config *LogfileSensorConfig) (*sensor.Sensor, error) {
 	s.logger.Info("adding sensor", slog.Any("sensor", config))

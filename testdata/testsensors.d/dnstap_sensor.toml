@@ -1,3 +1,5 @@
 [dnstap_sensor]
 name = "dnstap1"
-file = "/var/log/named/dnstap.log"
+source = "file"
+#source = "socket"
+path = "/var/log/named/dnstap.log"

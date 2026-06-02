@@ -19,23 +19,79 @@ package netscanner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/tdrn-org/netscanner/sensor"
 	"github.com/tdrn-org/netscanner/sensor/dnstap"
 )
 
+type DnstapSensorConfig struct {
+	Name   string       `toml:"name"`
+	Source DnstapSource `toml:"source"`
+	Path   string       `toml:"path"`
+}
+
+func (c *DnstapSensorConfig) String() string {
+	return fmt.Sprintf(sensorStringFormatPath, "dnstap", c.Name, c.Path)
+}
+
 func (s *Server) addDnstapSensor(ctx context.Context, config *DnstapSensorConfig) (*sensor.Sensor, error) {
-	s.logger.Info("adding dnstap sensor", "name", config.Name, "file", config.File)
-
-	source, err := dnstap.NewFileSource(config.File)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dnstap sensor %q: %w", config.Name, err)
+	s.logger.Info("adding sensor", slog.Any("sensor", config))
+	var source *dnstap.Sensor
+	var err error
+	switch config.Source {
+	case DnstapSourceFile:
+		source, err = dnstap.PollFile(config.Path)
+	case DnstapSourceSocket:
+		source, err = dnstap.ListenSocket(config.Path)
+	default:
+		err = fmt.Errorf("unrecognized dnstap source '%s'", config.Source)
 	}
-
-	ss := sensor.New(config.Name, source)
+	if err != nil {
+		return nil, err
+	}
+	sensor := sensor.New(config.Name, source)
 	s.mutex.Lock()
-	s.sensors[ss.Name()] = ss
-	s.mutex.Unlock()
+	defer s.mutex.Unlock()
+	s.sensors[sensor.Name()] = sensor
+	return sensor, nil
+}
 
-	return ss, nil
+type DnstapSource string
+
+const (
+	DnstapSourceFile   DnstapSource = "file"
+	DnstapSourceSocket DnstapSource = "socket"
+)
+
+var knownDnstapSources map[string]DnstapSource = map[string]DnstapSource{
+	string(DnstapSourceFile):   DnstapSourceFile,
+	string(DnstapSourceSocket): DnstapSourceSocket,
+}
+
+func (s *DnstapSource) Value() string {
+	for value, dnstapSource := range knownDnstapSources {
+		if *s == dnstapSource {
+			return value
+		}
+	}
+	slog.Warn("unexpected dnstap source", slog.Any("s", *s))
+	return ""
+}
+
+func (s *DnstapSource) MarshalTOML() ([]byte, error) {
+	return []byte(`"` + s.Value() + `"`), nil
+}
+
+func (s *DnstapSource) UnmarshalTOML(value any) error {
+	dnstapSourceString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("unexpected dnstap source type %v", value)
+	}
+	dnstapSource, ok := knownDnstapSources[dnstapSourceString]
+	if !ok {
+		return fmt.Errorf("unknown dnstap source: '%s'", dnstapSourceString)
+	}
+	*s = dnstapSource
+	return nil
 }

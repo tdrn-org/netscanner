@@ -27,10 +27,6 @@ import (
 	"slices"
 
 	"github.com/BurntSushi/toml"
-	"github.com/tdrn-org/netscanner/config"
-	"github.com/tdrn-org/netscanner/sensor/accesslog"
-	"github.com/tdrn-org/netscanner/sensor/logfile"
-	"github.com/tdrn-org/netscanner/sensor/syslog"
 )
 
 type Config struct {
@@ -103,11 +99,6 @@ type SensorConfig struct {
 	DnstapSensor    *DnstapSensorConfig    `toml:"dnstap_sensor"`
 }
 
-type DnstapSensorConfig struct {
-	Name string `toml:"name"`
-	File string `toml:"file"`
-}
-
 func (c *SensorConfig) validate() error {
 	sensorCount := 0
 	if c.SyslogSensor != nil {
@@ -143,112 +134,13 @@ func (c *SensorConfig) String() string {
 		return c.AccesslogSensor.String()
 	}
 	if c.DnstapSensor != nil {
-		return fmt.Sprintf(sensorStringFormatPath, "dnstap", c.DnstapSensor.Name, c.DnstapSensor.File)
+		return c.DnstapSensor.String()
 	}
 	return ""
 }
 
 const sensorStringFormatPath string = "%s/%s[%s]"
 const sensorStringFormatURL string = "%s/%s[%s://%s]"
-
-type SyslogSensorConfig struct {
-	Name            string        `toml:"name"`
-	Network         SyslogNetwork `toml:"network"`
-	Address         string        `toml:"address"`
-	LogMatcherIndex string        `toml:"log_matcher_index"`
-}
-
-func (c *SyslogSensorConfig) String() string {
-	return fmt.Sprintf(sensorStringFormatURL, syslog.Name, c.Name, c.Network, c.Address)
-}
-
-type LogfileSensorConfig struct {
-	Name            string `toml:"name"`
-	Path            string `toml:"path"`
-	LogMatcherIndex string `toml:"log_matcher_index"`
-	Regexp          struct {
-		Pattern         config.RegexpSpec `toml:"pattern"`
-		TimestampField  int               `toml:"timestamp_field"`
-		TimestampLayout string            `toml:"timestamp_layout"`
-		HostField       int               `toml:"host_field"`
-		MessageField    int               `toml:"message_field"`
-	} `toml:"regexp"`
-}
-
-func (c *LogfileSensorConfig) String() string {
-	return fmt.Sprintf(sensorStringFormatPath, logfile.Name, c.Name, c.Path)
-}
-
-func (c *LogfileSensorConfig) regexpScanOptions() *logfile.RegexpScanOptions {
-	return &logfile.RegexpScanOptions{
-		Pattern:         c.Regexp.Pattern.Regexp,
-		TimestampField:  c.Regexp.TimestampField,
-		TimestampLayout: c.Regexp.TimestampLayout,
-		HostField:       c.Regexp.HostField,
-		MessageField:    c.Regexp.MessageField,
-		Tail:            true, // for now we default to true (accept misses; before duplicates)
-	}
-}
-
-type AccesslogSensorConfig struct {
-	Name       string      `toml:"name"`
-	Path       string      `toml:"path"`
-	AuthURIs   []string    `toml:"auth_uris"`
-	IgnoreURIs []string    `toml:"ignore_uris"`
-	Encoding   LogEncoding `toml:"encoding"`
-	Regexp     struct {
-		Pattern         config.RegexpSpec `toml:"pattern"`
-		TimestampField  int               `toml:"timestamp_field"`
-		TimestampLayout string            `toml:"timestamp_layout"`
-		StatusField     int               `toml:"status_field"`
-		AddressField    int               `toml:"address_field"`
-		UserField       int               `toml:"user_field"`
-		URIField        int               `toml:"uri_field"`
-	} `toml:"regexp"`
-	JSON struct {
-		TimestampField  []string `toml:"timestamp_field"`
-		TimestampLayout string   `toml:"timestamp_layout"`
-		StatusField     []string `toml:"status_field"`
-		AddressField    []string `toml:"address_field"`
-		UserField       []string `toml:"user_field"`
-		URIField        []string `toml:"uri_field"`
-	} `toml:"json"`
-}
-
-func (c *AccesslogSensorConfig) String() string {
-	return fmt.Sprintf(sensorStringFormatPath, logfile.Name, c.Name, c.Path)
-}
-
-func (c *AccesslogSensorConfig) regexpScanOptions() *accesslog.RegexpScanOptions {
-	return &accesslog.RegexpScanOptions{
-		ScanOptions: accesslog.ScanOptions{
-			AuthURIs:   c.AuthURIs,
-			IgnoreURIs: c.IgnoreURIs,
-			Tail:       true, // for now we default to true (accept misses; before duplicates)
-		},
-		Pattern:         c.Regexp.Pattern.Regexp,
-		TimestampField:  c.Regexp.TimestampField,
-		TimestampLayout: c.Regexp.TimestampLayout,
-		StatusField:     c.Regexp.StatusField,
-		AddressField:    c.Regexp.AddressField,
-		UserField:       c.Regexp.UserField,
-	}
-}
-
-func (c *AccesslogSensorConfig) jsonScanOptions() *accesslog.JSONScanOptions {
-	return &accesslog.JSONScanOptions{
-		ScanOptions: accesslog.ScanOptions{
-			AuthURIs:   c.AuthURIs,
-			IgnoreURIs: c.IgnoreURIs,
-			Tail:       true, // for now we default to true (accept misses; before duplicates)
-		},
-		TimestampField:  c.JSON.TimestampField,
-		TimestampLayout: c.JSON.TimestampLayout,
-		StatusField:     c.JSON.StatusField,
-		AddressField:    c.JSON.AddressField,
-		UserField:       c.JSON.UserField,
-	}
-}
 
 //go:embed config_defaults.toml
 var configDefaultsData string

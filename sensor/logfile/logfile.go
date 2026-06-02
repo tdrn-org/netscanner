@@ -85,6 +85,16 @@ func (o *RegexpScanOptions) validate() error {
 }
 
 func (o *RegexpScanOptions) resolve(index *logmatcher.Index, match []string) (*sensor.Event, error) {
+	maxField := o.MessageField
+	if o.HostField > maxField {
+		maxField = o.HostField
+	}
+	if o.TimestampField > maxField {
+		maxField = o.TimestampField
+	}
+	if len(match) <= maxField {
+		return nil, nil
+	}
 	timestampMatch := match[o.TimestampField]
 	timestamp, err := time.Parse(o.TimestampLayout, timestampMatch)
 	if err != nil {

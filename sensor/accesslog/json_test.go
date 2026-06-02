@@ -18,7 +18,9 @@ package accesslog_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -35,13 +37,36 @@ func TestAccesslogJSON(t *testing.T) {
 	}
 	accesslogSensor, err := accesslog.ScanJSON("testdata/access_log.json", options)
 	require.NoError(t, err)
-	err = accesslogSensor.Collect(sensor.EventReceiverFunc(func(ctx context.Context, event *sensor.Event) {
-		fmt.Println(event)
-	}))
-	require.NoError(t, err)
-	time.Sleep(5 * time.Second)
-	err = accesslogSensor.Shutdown(t.Context())
-	require.NoError(t, err)
-	err = accesslogSensor.Close()
-	require.NoError(t, err)
+	collectDone := make(chan error, 1)
+	go func() {
+		collectDone <- accesslogSensor.Collect(sensor.EventReceiverFunc(func(ctx context.Context, event *sensor.Event) {
+			fmt.Println(event)
+		}))
+	}()
+	// Wait briefly for the collector to drain the testdata file and reach EOF.
+	// After EOF the scanner idles (with a 250ms backoff per read), so we shut
+	// down explicitly via Shutdown/Close rather than a blind time.Sleep.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-collectDone:
+			require.NoError(t, err)
+			require.NoError(t, accesslogSensor.Close())
+			return
+		default:
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// Still collecting — explicitly shut it down.
+	require.NoError(t, accesslogSensor.Shutdown(t.Context()))
+	select {
+	case err := <-collectDone:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("collector did not finish after Shutdown")
+	}
+	// Close is idempotent on a closed sensor; ErrClosed from double-close is OK.
+	if err := accesslogSensor.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+		t.Fatalf("unexpected close error: %v", err)
+	}
 }

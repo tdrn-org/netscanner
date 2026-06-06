@@ -212,16 +212,16 @@ func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, 
 	tokens := tokenizer.Tokens(message)
 	resolved := index.ResolveValues(tokens)
 	if resolved != nil {
-		event := &sensor.Event{
-			Host:            host,
-			Timestamp:       timestamp,
-			Type:            resolved.EventType,
-			Address:         resolved.Address,
-			HardwareAddress: resolved.HardwareAddress,
-			User:            resolved.User,
-			Service:         resolved.Service,
-			Sensor:          Name,
-		}
-		receiver.Queue(context.Background(), event)
+		sensorEvent := sensor.NewEvent()
+		sensorEvent.Release()
+		sensorEvent.Host = host
+		sensorEvent.Timestamp = timestamp
+		sensorEvent.Type = resolved.EventType
+		sensorEvent.Address = resolved.Address
+		sensorEvent.HardwareAddress = resolved.HardwareAddress
+		sensorEvent.User = resolved.User
+		sensorEvent.Service = resolved.Service
+		sensorEvent.Sensor = Name
+		receiver.Queue(context.Background(), sensorEvent)
 	}
 }

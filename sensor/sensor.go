@@ -59,6 +59,23 @@ type Event struct {
 	Sensor          string
 }
 
+var eventPool = sync.Pool{
+	New: func() any { return &Event{} },
+}
+
+func NewEvent() *Event {
+	return eventPool.Get().(*Event)
+}
+
+var emptyEvent = Event{}
+
+func (e *Event) Release() {
+	if e == nil {
+		return
+	}
+	*e = emptyEvent
+}
+
 func (e *Event) IsValid() bool {
 	return e.Host != "" && !e.Timestamp.IsZero() && e.Type != "" && e.Address.IsValid() && e.Service != "" && e.Sensor != ""
 }

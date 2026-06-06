@@ -90,8 +90,7 @@ func (s *Server) recordEventInfos(ctx context.Context, event *sensor.Event) {
 }
 
 func (s *Server) recordEvent(ctx context.Context, event *sensor.Event) {
-	// TODO: Log finalisieren
-	s.logger.Info("recording event", slog.String("event", event.String()))
+	s.stats.RecordAndLog(s.logger, event)
 	serverInfo, found := s.deviceInfos.LookupHost(ctx, event.Host, event.Address)
 	if !found {
 		s.logger.Warn("failed to lookup server device info", slog.String("host", event.Host))

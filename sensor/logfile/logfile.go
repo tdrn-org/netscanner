@@ -108,15 +108,14 @@ func (o *RegexpScanOptions) resolve(index *logmatcher.Index, match []string) (*s
 	if resolved == nil {
 		return nil, nil
 	}
-	event := &sensor.Event{
-		Host:            host,
-		Timestamp:       timestamp,
-		Type:            resolved.EventType,
-		Address:         resolved.Address,
-		HardwareAddress: resolved.HardwareAddress,
-		User:            resolved.User,
-		Service:         resolved.Service,
-	}
+	event := sensor.NewEvent()
+	event.Host = host
+	event.Timestamp = timestamp
+	event.Type = resolved.EventType
+	event.Address = resolved.Address
+	event.HardwareAddress = resolved.HardwareAddress
+	event.User = resolved.User
+	event.Service = resolved.Service
 	return event, nil
 }
 
@@ -152,6 +151,7 @@ func (s *regexpLogfileSensor) Collect(receiver sensor.EventReceiver) error {
 			continue
 		}
 		event, err := s.options.resolve(s.index, match)
+		event.Release()
 		if err != nil {
 			s.logger.Warn("resolve failure", slog.Any("err", err))
 			continue

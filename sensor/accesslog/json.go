@@ -75,12 +75,11 @@ func (o *JSONScanOptions) resolve(object file.JSON) (*sensor.Event, error) {
 		return nil, nil
 	}
 	eventType := o.mapHttpStatus(status, uri)
-	event := &sensor.Event{
-		Timestamp: timestamp,
-		Type:      eventType,
-		Address:   address,
-		User:      user,
-	}
+	event := sensor.NewEvent()
+	event.Timestamp = timestamp
+	event.Type = eventType
+	event.Address = address
+	event.User = user
 	return event, nil
 }
 
@@ -118,6 +117,7 @@ func (s *jsonAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 			continue
 		}
 		event, err := s.options.resolve(object)
+		event.Release()
 		if err != nil {
 			s.logger.Warn("resolve failure", slog.Any("err", err))
 			continue

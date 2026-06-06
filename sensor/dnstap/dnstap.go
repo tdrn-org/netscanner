@@ -68,15 +68,15 @@ func (s *Sensor) Collect(receiver sensor.EventReceiver) error {
 		if !ok {
 			return
 		}
-		event := &sensor.Event{
-			Host:      server.String(),
-			Timestamp: time.Now(),
-			Type:      sensor.EventTypeInformational,
-			Address:   client,
-			Service:   "dns",
-			Sensor:    Name,
-		}
-		receiver.Queue(context.Background(), event)
+		sensorEvent := sensor.NewEvent()
+		defer sensorEvent.Release()
+		sensorEvent.Host = server.String()
+		sensorEvent.Timestamp = time.Now()
+		sensorEvent.Type = sensor.EventTypeInformational
+		sensorEvent.Address = client
+		sensorEvent.Service = "dns"
+		sensorEvent.Sensor = Name
+		receiver.Queue(context.Background(), sensorEvent)
 	})
 	return nil
 }

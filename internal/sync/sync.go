@@ -99,16 +99,16 @@ func (h *receiveHandler) SendEvent(ctx context.Context, event *Event) (*EmptyRes
 	default:
 		return &EmptyResponse{}, fmt.Errorf("unexpected address lenght: %d", len(event.Address))
 	}
-	sensorEvent := &sensor.Event{
-		Host:            event.Host,
-		Timestamp:       event.Timestamp.AsTime(),
-		Type:            sensorEventType,
-		Address:         address,
-		HardwareAddress: event.HardwareAddress,
-		User:            event.User,
-		Service:         event.Service,
-		Sensor:          event.Sensor,
-	}
+	sensorEvent := sensor.NewEvent()
+	defer sensorEvent.Release()
+	sensorEvent.Host = event.Host
+	sensorEvent.Timestamp = event.Timestamp.AsTime()
+	sensorEvent.Type = sensorEventType
+	sensorEvent.Address = address
+	sensorEvent.HardwareAddress = event.HardwareAddress
+	sensorEvent.User = event.User
+	sensorEvent.Service = event.Service
+	sensorEvent.Sensor = event.Sensor
 	h.receiver.Queue(ctx, sensorEvent)
 	return &EmptyResponse{}, nil
 }

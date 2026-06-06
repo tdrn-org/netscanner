@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,8 +61,37 @@ type Server struct {
 	defaultHost     string
 	sensors         map[string]*sensor.Sensor
 	logMatchers     map[string]*logmatcher.Index
+	stats           serverStats
 	mutex           sync.RWMutex
 	logger          *slog.Logger
+}
+
+type serverStats struct {
+	informationalCount atomic.Uint64
+	grantedCount       atomic.Uint64
+	deniedCount        atomic.Uint64
+	errorCount         atomic.Uint64
+}
+
+func (s *serverStats) RecordAndLog(logger *slog.Logger, event *sensor.Event) {
+	var informationalCount uint64
+	var grantedCount uint64
+	var deniedCount uint64
+	var errorCount uint64
+	switch event.Type {
+	case sensor.EventTypeInformational:
+		informationalCount = s.informationalCount.Add(1)
+	case sensor.EventTypeGranted:
+		grantedCount = s.grantedCount.Add(1)
+	case sensor.EventTypeDenied:
+		deniedCount = s.deniedCount.Add(1)
+	case sensor.EventTypeError:
+		errorCount = s.errorCount.Add(1)
+	}
+	totalCount := informationalCount + grantedCount + deniedCount + errorCount
+	if (totalCount % 100) == 0 {
+		logger.Info("events recorded", slog.Uint64("total", totalCount), slog.Uint64("informational", informationalCount), slog.Uint64("granted", grantedCount), slog.Uint64("denied", deniedCount), slog.Uint64("error", errorCount))
+	}
 }
 
 func StartServer(ctx context.Context, config *Config) (*Server, error) {

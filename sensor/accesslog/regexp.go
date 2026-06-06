@@ -103,12 +103,11 @@ func (o *RegexpScanOptions) resolve(match []string) (*sensor.Event, error) {
 		return nil, nil
 	}
 	eventType := o.mapHttpStatus(int(status), uri)
-	event := &sensor.Event{
-		Timestamp: timestamp,
-		Type:      eventType,
-		Address:   address,
-		User:      user,
-	}
+	event := sensor.NewEvent()
+	event.Timestamp = timestamp
+	event.Type = eventType
+	event.Address = address
+	event.User = user
 	return event, nil
 }
 
@@ -143,6 +142,7 @@ func (s *regexpAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 			continue
 		}
 		event, err := s.options.resolve(match)
+		event.Release()
 		if err != nil {
 			s.logger.Warn("resolve failure", slog.Any("err", err))
 			continue

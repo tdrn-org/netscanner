@@ -33,7 +33,7 @@ func TestListenSocket(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "dnstap.sock")
 
-	receiver, err := dnstap.NewSocketReceiver(path, 0666, dnstap.DefaultMaxFrameSize, time.Unix(0, 0))
+	receiver, err := dnstap.NewSocketReceiver(path, 0666, dnstap.DefaultMaxFrameSize, false)
 	require.NoError(t, err)
 
 	go func() {
@@ -52,7 +52,7 @@ func TestListenSocket(t *testing.T) {
 
 	_, err = io.Copy(socket, log)
 	require.NoError(t, err)
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	require.NoError(t, receiver.Shutdown(t.Context()))
 	require.NoError(t, receiver.Close())

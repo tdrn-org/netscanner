@@ -44,7 +44,7 @@ type socketReceiver struct {
 	activeConns  map[net.Conn]net.Conn
 }
 
-func NewSocketReceiver(path string, mode os.FileMode, maxFrameSize int, skipBefore time.Time) (Receiver, error) {
+func NewSocketReceiver(path string, mode os.FileMode, maxFrameSize int, tail bool) (Receiver, error) {
 	logger := slog.With(slog.String("sensor", Name), slog.String("socket", path))
 	err := os.Remove(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -62,6 +62,10 @@ func NewSocketReceiver(path string, mode os.FileMode, maxFrameSize int, skipBefo
 	if err != nil {
 		listener.Close()
 		return nil, fmt.Errorf("failed to chmod unix socket '%s' (cause: %w)", path, err)
+	}
+	skipBefore := time.Unix(0, 0)
+	if tail {
+		skipBefore = time.Now()
 	}
 	receiver := &socketReceiver{
 		path:         path,

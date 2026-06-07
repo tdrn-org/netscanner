@@ -31,7 +31,7 @@ type Sensor struct {
 }
 
 func ListenSocket(path string) (*Sensor, error) {
-	receiver, err := NewSocketReceiver(path, 0666, DefaultMaxFrameSize, time.Now())
+	receiver, err := NewSocketReceiver(path, 0666, DefaultMaxFrameSize, true)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func ListenSocket(path string) (*Sensor, error) {
 }
 
 func PollFile(path string) (*Sensor, error) {
-	receiver, err := NewFileReceiver(path, DefaultMaxFrameSize, time.Now())
+	receiver, err := NewFileReceiver(path, DefaultMaxFrameSize, true)
 	if err != nil {
 		return nil, err
 	}

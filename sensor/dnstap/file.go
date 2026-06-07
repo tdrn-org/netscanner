@@ -42,7 +42,11 @@ type fileReceiver struct {
 	stoppedWG    sync.WaitGroup
 }
 
-func NewFileReceiver(path string, maxFrameSize int, skipBefore time.Time) (Receiver, error) {
+func NewFileReceiver(path string, maxFrameSize int, tail bool) (Receiver, error) {
+	skipBefore := time.Unix(0, 0)
+	if tail {
+		skipBefore = time.Now()
+	}
 	receiver := &fileReceiver{
 		path:         path,
 		maxFrameSize: maxFrameSize,
@@ -59,6 +63,7 @@ func (r *fileReceiver) Consume(consumer EntryConsumer) {
 	buffer := make([]byte, r.maxFrameSize)
 	for {
 		if r.stopping.Load() {
+			r.close()
 			return
 		}
 		if r.delay != 0 {
@@ -91,13 +96,12 @@ func (r *fileReceiver) Consume(consumer EntryConsumer) {
 		r.logger.Debug("consuming dnstap event")
 		consumer(entry)
 	}
-	r.close()
 }
 
 const fileReadDelay time.Duration = 500 * time.Millisecond
 
 func (r *fileReceiver) ensureOpen() bool {
-	if r.file == nil {
+	if r.frameReader == nil {
 		r.logger.Info("opening dnstap...")
 		file, err := os.Open(r.path)
 		if err != nil {
@@ -105,7 +109,11 @@ func (r *fileReceiver) ensureOpen() bool {
 			r.triggerReopen(2 * fileReadDelay)
 			return false
 		}
-		frameReader, err := framestream.NewReader(file, &framestream.ReaderOptions{
+		r.file = file
+		if !r.skipBefore.IsZero() {
+			r.skipBefore = time.Now()
+		}
+		frameReader, err := framestream.NewReader(&followReader{r: r}, &framestream.ReaderOptions{
 			ContentTypes:  [][]byte{[]byte("protobuf:dnstap.Dnstap")},
 			Bidirectional: false,
 		})
@@ -115,10 +123,37 @@ func (r *fileReceiver) ensureOpen() bool {
 			r.triggerReopen(2 * fileReadDelay)
 			return false
 		}
-		r.file = file
 		r.frameReader = frameReader
 	}
 	return true
+}
+
+type followReader struct {
+	r *fileReceiver
+}
+
+func (f *followReader) Read(p []byte) (int, error) {
+	return f.r.readFile(p)
+}
+
+func (r *fileReceiver) readFile(buffer []byte) (int, error) {
+	for {
+		if r.stopping.Load() {
+			return 0, io.EOF
+		}
+		n, err := r.file.Read(buffer)
+		if n > 0 {
+			return n, err
+		}
+		if errors.Is(err, io.EOF) {
+			if r.seekIfTruncated() {
+				return 0, io.EOF
+			}
+			time.Sleep(fileReadDelay)
+			continue
+		}
+		return n, err
+	}
 }
 
 func (r *fileReceiver) triggerReopen(delay time.Duration) {

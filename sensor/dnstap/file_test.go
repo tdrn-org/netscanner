@@ -26,13 +26,15 @@ import (
 )
 
 func TestPollFile(t *testing.T) {
-	receiver, err := dnstap.NewFileReceiver("testdata/dnstap.log", dnstap.DefaultMaxFrameSize, time.Unix(0, 0))
+	receiver, err := dnstap.NewFileReceiver("testdata/dnstap.log", dnstap.DefaultMaxFrameSize, false)
 	require.NoError(t, err)
 
-	receiver.Consume(func(entry *dnstap.Entry) {
-		fmt.Println(entry.Decode())
-	})
-	time.Sleep(10 * time.Second)
+	go func() {
+		receiver.Consume(func(entry *dnstap.Entry) {
+			fmt.Println(entry.Decode())
+		})
+	}()
+	time.Sleep(5 * time.Second)
 	require.NoError(t, receiver.Shutdown(t.Context()))
 	require.NoError(t, receiver.Close())
 }

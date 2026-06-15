@@ -6,7 +6,7 @@ require (
 	github.com/prometheus-community/pro-bing v0.8.0
 	github.com/rs/cors v1.11.1
 	github.com/tdrn-org/go-conf v0.0.6
-	golang.org/x/text v0.37.0
+	golang.org/x/text v0.38.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
@@ -83,7 +83,7 @@ require (
 	github.com/tdrn-org/go-log v0.5.5
 	github.com/tdrn-org/go-tlsconf v0.0.10
 	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 )
 

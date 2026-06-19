@@ -3,7 +3,7 @@ module github.com/tdrn-org/netscanner
 go 1.26
 
 require (
-	github.com/prometheus-community/pro-bing v0.8.0
+	github.com/prometheus-community/pro-bing v0.9.0
 	github.com/rs/cors v1.11.1
 	github.com/tdrn-org/go-conf v0.0.6
 	golang.org/x/text v0.38.0

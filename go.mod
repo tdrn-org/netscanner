@@ -77,7 +77,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
-	github.com/tdrn-org/go-database v0.0.6
+	github.com/tdrn-org/go-database v0.1.0
 	github.com/tdrn-org/go-diff v0.1.3
 	github.com/tdrn-org/go-httpserver v0.1.1
 	github.com/tdrn-org/go-log v0.5.6

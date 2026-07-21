@@ -67,7 +67,7 @@ require (
 require (
 	codeberg.org/miekg/dns v0.6.84
 	github.com/BurntSushi/toml v1.6.0
-	github.com/alecthomas/kong v1.15.0
+	github.com/alecthomas/kong v1.16.0
 	github.com/farsightsec/golang-framestream v0.3.0
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/maxmind/mmdbwriter v1.2.0

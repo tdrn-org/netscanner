@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/prometheus-community/pro-bing v0.9.1
 	github.com/rs/cors v1.11.1
-	github.com/tdrn-org/go-conf v0.0.6
+	github.com/tdrn-org/go-conf v0.0.7
 	golang.org/x/text v0.40.0
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
@@ -79,9 +79,9 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/tdrn-org/go-database v0.1.1
 	github.com/tdrn-org/go-diff v0.1.3
-	github.com/tdrn-org/go-httpserver v0.1.1
+	github.com/tdrn-org/go-httpserver v0.1.2
 	github.com/tdrn-org/go-log v0.5.7
-	github.com/tdrn-org/go-tlsconf v0.0.10
+	github.com/tdrn-org/go-tlsconf v0.0.11
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

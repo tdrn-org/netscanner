@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/prometheus-community/pro-bing v0.9.1
 	github.com/rs/cors v1.11.1
-	github.com/tdrn-org/go-conf v0.0.6
+	github.com/tdrn-org/go-conf v0.0.7
 	golang.org/x/text v0.40.0
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11

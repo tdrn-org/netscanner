@@ -34,7 +34,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/mattn/go-isatty v0.0.23 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -80,7 +80,7 @@ require (
 	github.com/tdrn-org/go-database v0.1.1
 	github.com/tdrn-org/go-diff v0.1.3
 	github.com/tdrn-org/go-httpserver v0.1.2
-	github.com/tdrn-org/go-log v0.5.7
+	github.com/tdrn-org/go-log v0.5.8
 	github.com/tdrn-org/go-tlsconf v0.0.11
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

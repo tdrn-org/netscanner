@@ -79,7 +79,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/tdrn-org/go-database v0.1.1
 	github.com/tdrn-org/go-diff v0.1.3
-	github.com/tdrn-org/go-httpserver v0.1.1
+	github.com/tdrn-org/go-httpserver v0.1.2
 	github.com/tdrn-org/go-log v0.5.7
 	github.com/tdrn-org/go-tlsconf v0.0.11
 	golang.org/x/net v0.57.0 // indirect

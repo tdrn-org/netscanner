@@ -134,8 +134,8 @@ github.com/tdrn-org/go-httpserver v0.1.1 h1:M41K99LvyCNLboyGM0IhiZ7Qbw9OmfrhISng
 github.com/tdrn-org/go-httpserver v0.1.1/go.mod h1:SofrD2yk0GXAKPUeR4klYIQYFvW9hqz7jbavX//rq3Q=
 github.com/tdrn-org/go-log v0.5.7 h1:QyAb0XpLuagV8/boCZSvZxQ9GEUpx9mJ+9uas4yqL2A=
 github.com/tdrn-org/go-log v0.5.7/go.mod h1:8GfVRMlOMCNXC/JJDyo+ACXT4pQFX3rGDCSYgnVBxB8=
-github.com/tdrn-org/go-tlsconf v0.0.10 h1:dbBiA9sZ4Y/9zGdMeVtXyDyd/vLoOh4diebkk5BZatk=
-github.com/tdrn-org/go-tlsconf v0.0.10/go.mod h1:xSklUyH615Z55/4nrevuuqgmN7goVAy2XgfDMwhLMcE=
+github.com/tdrn-org/go-tlsconf v0.0.11 h1:UG9WajFmOZDkDvruJB1APaWdBYdgK4vEfeHsg6rYsEE=
+github.com/tdrn-org/go-tlsconf v0.0.11/go.mod h1:YAeaH2i6op8nufAVlMcJtGWGinTr2rEKj/ms8Wg09Zg=
 github.com/urfave/cli/v2 v2.27.7 h1:bH59vdhbjLv3LAvIu6gd0usJHgoTTPhCFib8qqOwXYU=
 github.com/urfave/cli/v2 v2.27.7/go.mod h1:CyNAG/xg+iAOg0N4MPGZqVmv2rCoP267496AOXUZjA4=
 github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 h1:FnBeRrxr7OU4VvAzt5X7s6266i6cSVkkFPS0TuXWbIg=

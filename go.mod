@@ -78,7 +78,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.6
 	github.com/tdrn-org/go-database v0.1.2
-	github.com/tdrn-org/go-diff v0.1.3
+	github.com/tdrn-org/go-diff v0.1.4
 	github.com/tdrn-org/go-httpserver v0.1.2
 	github.com/tdrn-org/go-log v0.5.8
 	github.com/tdrn-org/go-tlsconf v0.0.11

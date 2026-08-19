@@ -46,9 +46,9 @@ require (
 	github.com/urfave/cli/v2 v2.27.7 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.44.0 // indirect
-	go.opentelemetry.io/otel/metric v1.44.0 // indirect
-	go.opentelemetry.io/otel/trace v1.44.0 // indirect
+	go.opentelemetry.io/otel v1.45.0 // indirect
+	go.opentelemetry.io/otel/metric v1.45.0 // indirect
+	go.opentelemetry.io/otel/trace v1.45.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
@@ -79,7 +79,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/tdrn-org/go-database v0.1.2
 	github.com/tdrn-org/go-diff v0.1.4
-	github.com/tdrn-org/go-httpserver v0.1.2
+	github.com/tdrn-org/go-httpserver v0.1.3
 	github.com/tdrn-org/go-log v0.6.1
 	github.com/tdrn-org/go-tlsconf v0.0.12
 	golang.org/x/net v0.57.0 // indirect

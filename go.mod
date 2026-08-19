@@ -80,8 +80,8 @@ require (
 	github.com/tdrn-org/go-database v0.1.2
 	github.com/tdrn-org/go-diff v0.1.4
 	github.com/tdrn-org/go-httpserver v0.1.2
-	github.com/tdrn-org/go-log v0.5.8
-	github.com/tdrn-org/go-tlsconf v0.0.11
+	github.com/tdrn-org/go-log v0.6.1
+	github.com/tdrn-org/go-tlsconf v0.0.12
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect

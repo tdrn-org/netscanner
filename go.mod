@@ -7,7 +7,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/tdrn-org/go-conf v0.0.8
 	golang.org/x/text v0.40.0
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf v1.36.11
 )
 

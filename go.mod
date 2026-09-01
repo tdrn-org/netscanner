@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	codeberg.org/miekg/dns v0.6.102
 	github.com/BurntSushi/toml v1.6.0
-	github.com/alecthomas/kong v1.16.0
+	github.com/alecthomas/kong v1.16.1
 	github.com/farsightsec/golang-framestream v0.3.0
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0

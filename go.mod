@@ -3,7 +3,7 @@ module github.com/tdrn-org/netscanner
 go 1.27.0
 
 require (
-	codeberg.org/miekg/dns v0.6.105
+	codeberg.org/miekg/dns v0.6.109
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.16.1
 	github.com/farsightsec/golang-framestream v0.3.0

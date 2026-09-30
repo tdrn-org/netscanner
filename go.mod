@@ -21,7 +21,7 @@ require (
 	github.com/tdrn-org/go-diff v0.1.4
 	github.com/tdrn-org/go-httpserver v0.1.3
 	github.com/tdrn-org/go-log v0.6.2
-	github.com/tdrn-org/go-tlsconf v0.0.12
+	github.com/tdrn-org/go-tlsconf v0.0.13
 	golang.org/x/text v0.42.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12

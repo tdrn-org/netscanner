@@ -16,12 +16,12 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
 	github.com/swaggo/swag v1.16.6
-	github.com/tdrn-org/go-conf v0.0.8
+	github.com/tdrn-org/go-conf v0.0.10
 	github.com/tdrn-org/go-database v0.1.4
 	github.com/tdrn-org/go-diff v0.1.4
 	github.com/tdrn-org/go-httpserver v0.1.4
-	github.com/tdrn-org/go-log v0.6.2
-	github.com/tdrn-org/go-tlsconf v0.0.13
+	github.com/tdrn-org/go-log v0.6.4
+	github.com/tdrn-org/go-tlsconf v0.0.15
 	golang.org/x/text v0.42.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12

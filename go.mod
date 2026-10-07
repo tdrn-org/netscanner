@@ -19,7 +19,7 @@ require (
 	github.com/tdrn-org/go-conf v0.0.10
 	github.com/tdrn-org/go-database v0.1.4
 	github.com/tdrn-org/go-diff v0.1.4
-	github.com/tdrn-org/go-httpserver v0.1.4
+	github.com/tdrn-org/go-httpserver v0.1.6
 	github.com/tdrn-org/go-log v0.6.4
 	github.com/tdrn-org/go-tlsconf v0.0.15
 	golang.org/x/text v0.42.0

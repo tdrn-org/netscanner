@@ -10,7 +10,7 @@ require (
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mmcloughlin/geohash v0.10.0
-	github.com/oschwald/maxminddb-golang/v2 v2.6.0
+	github.com/oschwald/maxminddb-golang/v2 v2.7.0
 	github.com/prometheus-community/pro-bing v0.9.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rs/cors v1.11.1

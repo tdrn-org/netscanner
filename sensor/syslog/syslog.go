@@ -213,7 +213,7 @@ func queueSyslogMessage(index *logmatcher.Index, receiver sensor.EventReceiver, 
 	resolved := index.ResolveValues(tokens)
 	if resolved != nil {
 		sensorEvent := sensor.NewEvent()
-		sensorEvent.Release()
+		defer sensorEvent.Release()
 		sensorEvent.Host = host
 		sensorEvent.Timestamp = timestamp
 		sensorEvent.Type = resolved.EventType

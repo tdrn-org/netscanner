@@ -117,7 +117,7 @@ func (s *jsonAccesslogSensor) Collect(receiver sensor.EventReceiver) error {
 			continue
 		}
 		event, err := s.options.resolve(object)
-		event.Release()
+		defer event.Release()
 		if err != nil {
 			s.logger.Warn("resolve failure", slog.Any("err", err))
 			continue

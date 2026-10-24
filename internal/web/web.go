@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing/fstest"
+	"time"
 
 	"github.com/tdrn-org/go-httpserver"
 	"github.com/tdrn-org/go-httpserver/csp"
@@ -45,6 +46,14 @@ var messagesFS embed.FS
 // runtime base path, so the same embedded bundle can be served under any prefix.
 const basePathPlaceholder = "/__NETSCANNER_BASE_PATH__"
 
+// defaultDocument is the entry document of the web UI. It is served for the
+// document root and as fallback for every client side route.
+const defaultDocument = "index.html"
+
+// immutablePathPrefix is the path prefix SvelteKit uses for content hashed
+// build artifacts. Documents below this prefix may be cached indefinitely.
+const immutablePathPrefix = "/_app/immutable/"
+
 // BasePath derives the URL prefix used to host the application from the public URL.
 // Returns "" for root hosting, or a leading-slash path with no trailing slash (e.g. "/netscanner").
 func BasePath(publicURL *url.URL) string {
@@ -59,34 +68,32 @@ func BasePath(publicURL *url.URL) string {
 }
 
 func MountStatics(server *httpserver.Instance, basePath string) error {
+	handler, err := newStaticHandler(server.BaseURL().Scheme, basePath)
+	if err != nil {
+		return err
+	}
+	if basePath != "" {
+		handler = http.StripPrefix(basePath, handler)
+	}
+	server.Handle(basePath+"/", handler)
+	return nil
+}
+
+// newStaticHandler builds the handler serving the embedded web document. The
+// returned handler expects request paths relative to the document root (i.e.
+// without any base path prefix).
+func newStaticHandler(scheme string, basePath string) (http.Handler, error) {
 	sub, err := fs.Sub(buildFS, "build")
 	if err != nil {
-		return fmt.Errorf("unexpected web document structure (cause: %w)", err)
+		return nil, fmt.Errorf("unexpected web document structure (cause: %w)", err)
 	}
 	docs, err := rewriteBasePath(sub.(fs.ReadDirFS), basePath)
 	if err != nil {
-		return fmt.Errorf("failed to rewrite web document base path (cause: %w)", err)
+		return nil, fmt.Errorf("failed to rewrite web document base path (cause: %w)", err)
 	}
-	fileServer := http.FileServerFS(docs)
-	// SPA fallback: serve index.html for unmatched paths (client-side routing)
-	docsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Try serving the file first
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
-		}
-		f, err := docs.Open(path)
-		if err != nil {
-			// File not found — fall back to index.html for SPA routing
-			r.URL.Path = "/index.html"
-		} else {
-			f.Close()
-		}
-		fileServer.ServeHTTP(w, r)
-	})
 	contentSecurityPolicy := &csp.ContentSecurityPolicy{
 		BaseUri:       []string{csp.SrcSelf},
-		FormAction:    []string{csp.SrcSelf, server.BaseURL().Scheme + ":"},
+		FormAction:    []string{csp.SrcSelf, scheme + ":"},
 		FrameAncestor: []string{csp.SrcNone},
 		DefaultSrc:    []string{csp.SrcNone},
 		ConnectSrc:    []string{csp.SrcSelf},
@@ -97,17 +104,85 @@ func MountStatics(server *httpserver.Instance, basePath string) error {
 	}
 	err = contentSecurityPolicy.AddHashes(csp.HashAlgSHA256, docs)
 	if err != nil {
-		return fmt.Errorf("failed to generate csp hashes (cause: %w)", err)
+		return nil, fmt.Errorf("failed to generate csp hashes (cause: %w)", err)
 	}
-	cacheControl := httpserver.StaticHeader("Cache-Control", "public, max-age=86400, immutable")
-
-	var handler http.Handler = docsHandler
-	if basePath != "" {
-		handler = http.StripPrefix(basePath, docsHandler)
+	handler := &staticHandler{
+		docs:       docs,
+		fileServer: http.FileServerFS(docs),
 	}
+	return httpserver.HeaderHandler(handler, contentSecurityPolicy.Header(), cacheControl()), nil
+}
 
-	server.Handle(basePath+"/", httpserver.HeaderHandler(handler, contentSecurityPolicy.Header(), cacheControl))
-	return nil
+// cacheControl classifies the requested documents into cacheable assets and
+// documents that have to be revalidated.
+//
+// SvelteKit emits content-hashed file names below _app/immutable, so those can
+// be cached indefinitely. Everything else - the entry document index.html, the
+// build manifest _app/version.json and every document addressable by a stable
+// name - must be revalidated, otherwise a new build is not picked up.
+func cacheControl() httpserver.Header {
+	return httpserver.HeaderFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, immutablePathPrefix) {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+	})
+}
+
+// staticHandler serves the embedded web document and implements the SPA
+// fallback for client-side routes.
+type staticHandler struct {
+	docs       fs.FS
+	fileServer http.Handler
+}
+
+func (h *staticHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	requestPath := strings.TrimPrefix(r.URL.Path, "/")
+	path := requestPath
+	if path == "" || strings.HasSuffix(path, "/") {
+		path += defaultDocument
+	}
+	if _, err := fs.Stat(h.docs, path); err == nil {
+		h.fileServer.ServeHTTP(w, r)
+		return
+	}
+	if isDocumentRoute(requestPath) {
+		h.serveDefaultDocument(w, r)
+		return
+	}
+	h.serveNotFound(w)
+}
+
+// isDocumentRoute reports whether a request path which is not part of the web
+// document is a client side route that has to be answered with the entry
+// document. Missing assets are excluded: a file with an extension - typically a
+// chunk of a previous build - must yield 404, because answering it with the
+// entry document makes the browser parse HTML as script or stylesheet.
+func isDocumentRoute(requestPath string) bool {
+	return requestPath == "" || filepath.Ext(requestPath) == ""
+}
+
+// serveDefaultDocument writes the entry document. It is served directly
+// instead of routing the request through http.FileServer: file servers answer
+// requests for an index document with a redirect to the enclosing directory,
+// which - relative to the original client side route - leads back into the
+// fallback and finally results in a redirect loop or on the start page.
+func (h *staticHandler) serveDefaultDocument(w http.ResponseWriter, r *http.Request) {
+	content, err := fs.ReadFile(h.docs, defaultDocument)
+	if err != nil {
+		h.serveNotFound(w)
+		return
+	}
+	http.ServeContent(w, r, defaultDocument, time.Time{}, bytes.NewReader(content))
+}
+
+// serveNotFound reports a document which is not part of the web document. The
+// cache directive is reset: a failed request must not be cached, even when its
+// path belongs to the immutable assets.
+func (h *staticHandler) serveNotFound(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "no-store")
+	http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 }
 
 // rewriteBasePath returns an in-memory FS where every occurrence of

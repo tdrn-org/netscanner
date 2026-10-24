@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Topology, TopologyNode, TopologyEdge } from '$lib/types';
-	import { api } from '$lib/api';
-	import TopologyGraph from '$lib/components/TopologyGraph.svelte';
+	import type { Topology, TopologyNode, TopologyEdge } from '#lib/types.js';
+	import { api } from '#lib/api.js';
+	import TopologyGraph from '#lib/components/TopologyGraph.svelte';
 	import { Filter } from '@lucide/svelte';
 
 	let topology = $state<Topology | null>(null);

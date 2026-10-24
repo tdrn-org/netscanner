@@ -1,1 +1,3 @@
-export const handle = ({ event, resolve }) => resolve(event);
+import type { Handle } from '@sveltejs/kit/hooks';
+
+export const handle: Handle = ({ event, resolve }) => resolve(event);

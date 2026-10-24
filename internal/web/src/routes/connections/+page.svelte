@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { m } from '$lib/i18n.js';
-	import type { ConnectionInfo, ConnectionPage } from '$lib/types.js';
-	import { api } from '$lib/api.js';
-	import { mockConnections } from '$lib/mocks.js';
-	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
-	import { countryFlag } from '$lib/flag.js';
+	import { m } from '#lib/i18n.js';
+	import type { ConnectionInfo, ConnectionPage } from '#lib/types.js';
+	import { api } from '#lib/api.js';
+	import { mockConnections } from '#lib/mocks.js';
+	import StatusBadge from '#lib/components/ui/StatusBadge.svelte';
+	import { countryFlag } from '#lib/flag.js';
 	import { Wifi, MapPin, Monitor, Globe, ChevronDown, ChevronUp, Filter, ArrowUpDown } from '@lucide/svelte';
 
 	let page = $state<ConnectionPage | null>(null);

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { ConnectionInfo } from '$lib/types.js';
-	import { m } from '$lib/i18n.js';
+	import type { ConnectionInfo } from '#lib/types.js';
+	import { m } from '#lib/i18n.js';
 
 	let { status }: { status: ConnectionInfo['status'] } = $props();
 

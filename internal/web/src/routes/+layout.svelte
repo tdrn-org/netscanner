@@ -1,8 +1,8 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { m } from '$lib/i18n.js';
+	import { m } from '#lib/i18n.js';
 	import type { Snippet } from 'svelte';
 		import { Activity, Wifi, Shield, GitBranch } from '@lucide/svelte';
 
@@ -10,15 +10,15 @@ let { children }: { children: Snippet } = $props();
 
 const navItems = [
 	{ href: '/', label: m.nav_dashboard(), icon: Activity },
-	{ href: '/connections/', label: m.nav_connections(), icon: Wifi },
-	{ href: '/topology/', label: 'Topology', icon: GitBranch },
-	{ href: '/sensors/', label: m.nav_sensors(), icon: Shield }
-];
+	{ href: '/connections', label: m.nav_connections(), icon: Wifi },
+	{ href: '/topology', label: 'Topology', icon: GitBranch },
+	{ href: '/sensors', label: m.nav_sensors(), icon: Shield }
+] as const;
 
-	function isActive(path: string): boolean {
+	function isActive(path: (typeof navItems)[number]['href']): boolean {
 		const resolved = resolve(path);
-		if (path === '/') return $page.url.pathname === resolved;
-		return $page.url.pathname.startsWith(resolved);
+		if (path === '/') return page.url.pathname === resolved;
+		return page.url.pathname.startsWith(resolved);
 	}
 </script>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { m } from '$lib/i18n.js';
-	import { api } from '$lib/api.js';
+	import { m } from '#lib/i18n.js';
+	import { api } from '#lib/api.js';
 	import { FileCode, ListChecks } from '@lucide/svelte';
 
 	let rules = $state<string[]>([]);

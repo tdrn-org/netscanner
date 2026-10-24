@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { m } from '$lib/i18n.js';
-	import type { SensorInfo, ConnectionInfo } from '$lib/types.js';
-	import { api } from '$lib/api.js';
-	import { mockSensors, mockConnections } from '$lib/mocks.js';
-	import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+	import { m } from '#lib/i18n.js';
+	import type { SensorInfo, ConnectionInfo } from '#lib/types.js';
+	import { api } from '#lib/api.js';
+	import { mockSensors, mockConnections } from '#lib/mocks.js';
+	import StatusBadge from '#lib/components/ui/StatusBadge.svelte';
 	import { Activity, Wifi, Shield, ArrowUpRight } from '@lucide/svelte';
-	import { countryFlag } from '$lib/flag.js';
+	import { countryFlag } from '#lib/flag.js';
 
 	let sensors = $state<SensorInfo[]>([]);
 	let connections = $state<ConnectionInfo[]>([]);
@@ -111,7 +111,7 @@
 	<div class="mt-8">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-lg font-semibold text-white">{m.dashboard_recent_connections()}</h2>
-			<a href={resolve('/connections/')} class="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">Alle anzeigen →</a>
+			<a href={resolve('/connections')} class="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">Alle anzeigen →</a>
 		</div>
 
 		<div class="card overflow-hidden">

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { m } from '$lib/i18n.js';
-	import type { SensorInfo } from '$lib/types.js';
-	import { api } from '$lib/api.js';
-	import { mockSensors } from '$lib/mocks.js';
+	import { m } from '#lib/i18n.js';
+	import type { SensorInfo } from '#lib/types.js';
+	import { api } from '#lib/api.js';
+	import { mockSensors } from '#lib/mocks.js';
 	import { Shield, RefreshCw, FileText, Server } from '@lucide/svelte';
 
 	let sensors = $state<SensorInfo[]>([]);

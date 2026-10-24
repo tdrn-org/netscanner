@@ -6,7 +6,7 @@ export default defineConfig({
 	use: {
 		baseURL: 'http://localhost:9123',
 		headless: true,
-		chromiumSandbox: false,
+		launchOptions: { chromiumSandbox: false },
 	},
 	webServer: {
 		command: 'cd ../.. && go run ./cmd/netscanner/ --config ./internal/web/e2e/test-config.toml',

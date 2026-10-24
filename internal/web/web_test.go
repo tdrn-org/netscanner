@@ -17,6 +17,7 @@
 package web
 
 import (
+	"context"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -46,6 +47,55 @@ func newTestHandler(t *testing.T) http.Handler {
 	require.NoError(t, err)
 	handler := &staticHandler{docs: docs, fileServer: http.FileServerFS(docs)}
 	return httpserver.HeaderHandler(handler, cacheControl())
+}
+
+// TestNewStaticHandler covers the handler built from the embedded web document:
+// base path rewriting, content security policy and cache classification.
+func TestNewStaticHandler(t *testing.T) {
+	handler, err := newStaticHandler("https", "/netscanner")
+	require.NoError(t, err)
+	tests := []struct {
+		name           string
+		path           string
+		expectedStatus int
+	}{
+		{name: "document root", path: "/", expectedStatus: http.StatusOK},
+		{name: "client side route", path: "/connections", expectedStatus: http.StatusOK},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			assert.Equal(t, tc.expectedStatus, rec.Code)
+			assert.Equal(t, "no-cache", rec.Header().Get("Cache-Control"))
+			assert.Contains(t, rec.Header().Get("Content-Security-Policy"), "default-src")
+			assert.Contains(t, rec.Body.String(), "/netscanner/")
+		})
+	}
+}
+
+// TestStaticHandlerWithoutDefaultDocument covers the case of a web document
+// which does not contain an entry document at all.
+func TestStaticHandlerWithoutDefaultDocument(t *testing.T) {
+	docs, err := rewriteBasePath(fstest.MapFS{
+		"_app/immutable/nodes/0.CLUgpc7M.js": &fstest.MapFile{Data: []byte("console.log(0)")},
+	}, "")
+	require.NoError(t, err)
+	handler := httpserver.HeaderHandler(&staticHandler{docs: docs, fileServer: http.FileServerFS(docs)}, cacheControl())
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/connections", nil))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
+}
+
+// TestMountStatics covers mounting the web document below a base path.
+func TestMountStatics(t *testing.T) {
+	ctx := context.Background()
+	server, err := httpserver.Listen(ctx, "tcp", "localhost:0")
+	require.NoError(t, err)
+	defer server.Close()
+	require.NoError(t, MountStatics(server, "/netscanner"))
+	require.NoError(t, MountStatics(server, ""))
 }
 
 func TestStaticHandler(t *testing.T) {

@@ -75,9 +75,7 @@ func (r *fileReceiver) Consume(consumer EntryConsumer) {
 		}
 		frameLen, err := r.frameReader.ReadFrame(buffer)
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-			if !r.seekIfTruncated() {
-				r.delay = fileReadDelay
-			}
+			r.delay = fileReadDelay
 			continue
 		} else if err != nil {
 			r.logger.Error("file read failure", slog.Any("err", err))

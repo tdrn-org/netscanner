@@ -18,8 +18,8 @@
 		"@eslint/compat": "^2.0.4",
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.60.0",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.57.0",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.1.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
 		"@types/node": "^24",
@@ -43,5 +43,9 @@
 	"allowScripts": {
 		"fsevents@2.3.3": true,
 		"fsevents@2.3.2": true
+	},
+	"imports": {
+		"#lib": "./src/lib/index.ts",
+		"#lib/*": "./src/lib/*"
 	}
 }

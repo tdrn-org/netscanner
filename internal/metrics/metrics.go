@@ -60,26 +60,26 @@ func newMetricsRecorder(registry *prometheus.Registry) *metricsRecorder {
 			Namespace: metricsNamespace,
 			Subsystem: metricsSubsystemSensors,
 			Name:      metricsNameEvents,
-		}, []string{"host", "service", "network", "type"}),
+		}, []string{"service", "network", "type"}),
 		Geos: factory.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Subsystem: metricsSubsystemSensors,
 			Name:      metricsNameGeos,
-		}, []string{"host", "service", "network", "type", "geohash"}),
+		}, []string{"service", "network", "type", "geohash"}),
 		GeoHashChars: 12,
 	}
 	return recorder
 }
 
 func (r *metricsRecorder) RecordEvent(event *sensor.Event, deviceInfo *device.Info) {
-	eventsCounter, err := r.Events.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type))
+	eventsCounter, err := r.Events.GetMetricWithLabelValues(event.Service, deviceInfo.Network, string(event.Type))
 	if err == nil {
 		eventsCounter.Inc()
 	} else {
 		slog.Warn("events metric failure", slog.Any("err", err))
 	}
 	if !deviceInfo.Geo.IsNaN() {
-		geosCounter, err := r.Geos.GetMetricWithLabelValues(event.Host, event.Service, deviceInfo.Network, string(event.Type), deviceInfo.Geo.Hash(r.GeoHashChars))
+		geosCounter, err := r.Geos.GetMetricWithLabelValues(event.Service, deviceInfo.Network, string(event.Type), deviceInfo.Geo.Hash(r.GeoHashChars))
 		if err == nil {
 			geosCounter.Inc()
 		} else {

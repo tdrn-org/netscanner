@@ -18,6 +18,7 @@ package datastore
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/tdrn-org/go-database"
 	"github.com/tdrn-org/netscanner/internal/datastore/model"
@@ -79,7 +80,7 @@ func (s *Store) SelectConnectionsByCursor(ctx context.Context) ([]*model.Connect
 }
 
 func (s *Store) UpdateOrInsertConnection(ctx context.Context, serverInfo *device.Info, clientInfo *device.Info, event *sensor.Event) error {
-	txCtx, tx, err := s.driver.BeginTx(ctx)
+	txCtx, tx, err := s.driver.BeginTxWithOptions(ctx, &sql.TxOptions{ReadOnly: false})
 	if err != nil {
 		return err
 	}

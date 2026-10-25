@@ -47,7 +47,7 @@ func (c *DatastoreConfig) config() (database.Config, error) {
 	case DatabaseType(memory.Type):
 		return memory.NewConfig(model.SqliteSchemaScriptOption), nil
 	case DatabaseType(sqlite.Type):
-		return sqlite.NewConfig(c.SQLiteConfig.File, sqlite.ModeRWC, model.SqliteSchemaScriptOption), nil
+		return sqlite.NewConfig(c.SQLiteConfig.File, sqlite.ModeRWC, model.SqliteSchemaScriptOption, sqlite.WithOption("_busy_timeout", "1000")), nil
 	case DatabaseType(postgres.Type):
 		return postgres.NewConfig(c.PostgresConfig.DBName, c.PostgresConfig.User, c.PostgresConfig.Password, postgres.WithAddress(c.PostgresConfig.Address), model.PostgresSchemaScriptOption)
 	}

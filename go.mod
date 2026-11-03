@@ -23,7 +23,7 @@ require (
 	github.com/tdrn-org/go-log v0.6.4
 	github.com/tdrn-org/go-tlsconf v0.0.15
 	golang.org/x/text v0.43.0
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
 

@@ -3,7 +3,7 @@ module github.com/tdrn-org/netscanner
 go 1.27.0
 
 require (
-	codeberg.org/miekg/dns v0.6.133
+	codeberg.org/miekg/dns v0.6.138
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/kong v1.17.0
 	github.com/farsightsec/golang-framestream v0.3.0
@@ -72,7 +72,7 @@ require (
 	go4.org/netipx v0.0.0-20260823151212-3075585bcbeb // indirect
 	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/mod v0.43.0 // indirect
-	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
